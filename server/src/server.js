@@ -1,131 +1,147 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs');
-const sqlite3 = require('sqlite3').verbose();
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
+
+// Import utilities
+const db = require('./utils/db');
+const errorHandler = require('./middleware/errorHandler');
+
+// Import routes
+const authRoutes = require('./routes/auth');
+const voteRoutes = require('./routes/votes');
+const ideaRoutes = require('./routes/ideas');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Database setup
-const dbPath = path.join(__dirname, '../database.sqlite');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('❌ Грешка при свързване с базата:', err);
-  } else {
-    console.log('✓ Свързано към SQLite базата');
-    initializeDatabase();
-  }
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', message: 'Server is running' });
 });
 
 // Initialize database tables
-function initializeDatabase() {
-  db.serialize(() => {
+async function initializeDatabase() {
+  try {
     // Users table
-    db.run(`
+    await db.run(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
-        username TEXT NOT NULL,
+        username TEXT UNIQUE NOT NULL,
         school_code TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // Votes (polls) table
-    db.run(`
+    // Votes table
+    await db.run(`
       CREATE TABLE IF NOT EXISTS votes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        description TEXT,
-        yes_count INTEGER DEFAULT 0,
-        no_count INTEGER DEFAULT 0,
-        created_by INTEGER,
+        question TEXT NOT NULL,
+        optionYes TEXT DEFAULT 'Да',
+        optionNo TEXT DEFAULT 'Не',
+        countYes INTEGER DEFAULT 0,
+        countNo INTEGER DEFAULT 0,
+        userId INTEGER NOT NULL,
         status TEXT DEFAULT 'pending',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(created_by) REFERENCES users(id)
+        FOREIGN KEY (userId) REFERENCES users(id)
       )
     `);
 
     // Vote responses table
-    db.run(`
+    await db.run(`
       CREATE TABLE IF NOT EXISTS vote_responses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         vote_id INTEGER NOT NULL,
         user_id INTEGER NOT NULL,
-        choice TEXT NOT NULL,
+        choice TEXT NOT NULL CHECK(choice IN ('yes', 'no')),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(vote_id, user_id),
-        FOREIGN KEY(vote_id) REFERENCES votes(id),
-        FOREIGN KEY(user_id) REFERENCES users(id)
+        FOREIGN KEY (vote_id) REFERENCES votes(id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
       )
     `);
 
     // Ideas table
-    db.run(`
+    await db.run(`
       CREATE TABLE IF NOT EXISTS ideas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         description TEXT,
-        created_by INTEGER NOT NULL,
+        userId INTEGER NOT NULL,
+        author TEXT DEFAULT 'Анонимен',
         status TEXT DEFAULT 'pending',
-        upvote_count INTEGER DEFAULT 0,
+        upvotes INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(created_by) REFERENCES users(id)
+        FOREIGN KEY (userId) REFERENCES users(id)
       )
     `);
 
     // Idea upvotes table
-    db.run(`
+    await db.run(`
       CREATE TABLE IF NOT EXISTS idea_upvotes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         idea_id INTEGER NOT NULL,
         user_id INTEGER NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(idea_id, user_id),
-        FOREIGN KEY(idea_id) REFERENCES ideas(id),
-        FOREIGN KEY(user_id) REFERENCES users(id)
+        FOREIGN KEY (idea_id) REFERENCES ideas(id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
       )
     `);
 
-    console.log('✓ Таблиците са готови');
-  });
+    console.log('✓ Database tables initialized');
+  } catch (err) {
+    console.error('✗ Database initialization error:', err);
+    process.exit(1);
+  }
 }
 
 // Routes
-const authRoutes = require('./routes/auth');
-const votesRoutes = require('./routes/votes');
-const ideasRoutes = require('./routes/ideas');
+app.use('/auth', authRoutes);
+app.use('/votes', voteRoutes);
+app.use('/ideas', ideaRoutes);
 
-app.use('/auth', authRoutes(db, JWT_SECRET));
-app.use('/votes', votesRoutes(db));
-app.use('/ideas', ideasRoutes(db));
-
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Endpoint not found' });
 });
+
+// Error handler (must be last)
+app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`✓ Сървърът е стартиран на http://localhost:${PORT}`);
-});
+async function startServer() {
+  try {
+    // Connect to database
+    await db.connect();
+    
+    // Initialize database tables
+    await initializeDatabase();
+
+    // Start listening
+    app.listen(PORT, () => {
+      console.log(`✓ Server running on http://localhost:${PORT}`);
+      console.log('✓ Database connected and ready');
+    });
+  } catch (err) {
+    console.error('✗ Failed to start server:', err);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 // Graceful shutdown
-process.on('SIGINT', () => {
-  db.close((err) => {
-    if (err) console.error('❌ Грешка при затваряне на БД:', err);
-    else console.log('✓ БД е затворена');
-    process.exit(0);
-  });
+process.on('SIGINT', async () => {
+  console.log('\n✓ Shutting down gracefully...');
+  await db.close();
+  process.exit(0);
 });
-
-module.exports = { db };
