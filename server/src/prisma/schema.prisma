@@ -1,0 +1,229 @@
+// Prisma Schema for StudVoice
+// Anonymous student platform with secure authentication
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// School entity - represents a school using StudVoice
+model School {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique // Unique school code for registration
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users User[]
+  posts Post[]
+  polls Poll[]
+  amas  AMA[]
+
+  @@index([code])
+}
+
+// User entity - student account
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String   // bcrypt hashed password
+  anonymousId   String   @unique // For anonymous posts/comments
+  role          String   @default("STUDENT") // STUDENT, MODERATOR, STUDENT_COUNCIL, TEACHER, DIRECTOR, ADMIN
+  schoolId      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  isActive      Boolean  @default(true)
+
+  // Relations
+  school        School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+
+  @@index([email])
+  @@index([schoolId])
+  @@index([anonymousId])
+}
+
+// RefreshToken entity - for JWT refresh token management
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+// Post entity - anonymous student ideas/problems
+model Post {
+  id          String   @id @default(cuid())
+  anonymousId String   // Not userId - maintain anonymity
+  title       String?
+  content     String
+  status      String   @default("PENDING") // PENDING, UNDER_REVIEW, ACCEPTED, COMPLETED, REJECTED
+  schoolId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  comments    Comment[]
+  reactions   Reaction[]
+  reports     Report[]
+
+  @@index([anonymousId])
+  @@index([schoolId])
+  @@index([status])
+}
+
+// Comment entity - anonymous responses to posts
+model Comment {
+  id          String   @id @default(cuid())
+  postId      String
+  anonymousId String   // Not userId - maintain anonymity
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([anonymousId])
+}
+
+// Reaction entity - emoji reactions on posts
+model Reaction {
+  id          String   @id @default(cuid())
+  postId      String
+  anonymousId String   // Not userId - maintain anonymity
+  emoji       String
+  createdAt   DateTime @default(now())
+
+  // Relations
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, anonymousId, emoji])
+  @@index([postId])
+}
+
+// Report entity - for moderation
+model Report {
+  id        String   @id @default(cuid())
+  postId    String
+  reason    String
+  status    String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt DateTime @default(now())
+  reviewedAt DateTime?
+
+  // Relations
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([status])
+}
+
+// Poll entity - created by STUDENT_COUNCIL
+model Poll {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  schoolId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  options     PollOption[]
+  votes       Vote[]
+
+  @@index([schoolId])
+}
+
+// PollOption entity - individual poll choices
+model PollOption {
+  id        String @id @default(cuid())
+  pollId    String
+  text      String
+  createdAt DateTime @default(now())
+
+  // Relations
+  poll      Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes     Vote[]
+
+  @@index([pollId])
+}
+
+// Vote entity - anonymous votes on polls
+model Vote {
+  id          String   @id @default(cuid())
+  pollId      String
+  optionId    String
+  anonymousId String   // Not userId - maintain anonymity
+  createdAt   DateTime @default(now())
+
+  // Relations
+  poll        Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option      PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, anonymousId])
+  @@index([pollId])
+  @@index([optionId])
+}
+
+// AMA entity - Ask Me Anything sessions by STUDENT_COUNCIL
+model AMA {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  schoolId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  questions   AMAQuestion[]
+
+  @@index([schoolId])
+}
+
+// AMAQuestion entity - anonymous questions in AMA sessions
+model AMAQuestion {
+  id          String   @id @default(cuid())
+  amaId       String
+  anonymousId String   // Not userId - maintain anonymity
+  question    String
+  answer      String?
+  answeredAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  ama         AMA      @relation(fields: [amaId], references: [id], onDelete: Cascade)
+
+  @@index([amaId])
+  @@index([anonymousId])
+}
+
+// Moderation entity - for tracking moderator actions
+model Moderation {
+  id        String   @id @default(cuid())
+  userId    String   // The user being moderated
+  action    String   // MUTE, WARN, BAN
+  reason    String?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+}
