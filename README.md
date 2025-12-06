@@ -1,108 +1,210 @@
-# StudVoice - Student Voting & Ideas Platform
+# README.md — StudVoice
+StudVoice — Анонимна ученическа платформа за мнения, идеи и гласувания
 
-A modern, community-driven platform for students to participate in school votes and share ideas. Built with React, Express, SQLite, and styled with TailwindCSS.
+StudVoice е уеб платформа, която позволява на учениците да споделят идеи, да гласуват, да участват в AMA сесии, анкети и предизвикателства — напълно анонимно.
+Ръководството на училището получава само агрегирани данни и тенденции, без достъп до лична информация.
 
-## 🚀 Features
+## ⚙️ Технологии
+### Frontend
 
-- **User Authentication**: Register and login with email, username, and password
-- **Voting System**: Participate in yes/no polls with real-time vote counting
-- **Ideas Submission**: Share ideas for school improvements with community upvotes
-- **Persistent State**: All votes and upvotes are saved to localStorage
-- **Toast Notifications**: Real-time feedback with auto-dismissing alerts
-- **Responsive Design**: Works seamlessly on mobile and desktop
-- **Anonymous Submissions**: Show "Анонимен" on frontend while tracking internally
-- **Bulgarian Language UI**: Full Bulgarian interface
+- React (Vite)
+- React Router
+- TailwindCSS
+- TanStack Query (React Query)
+- Axios
 
-## 📋 Project Structure
+### Backend
+
+- Node.js + Express
+- Prisma ORM
+- PostgreSQL (или SQLite за локално)
+- JSON Web Tokens (JWT)
+- bcrypt за хеширане на пароли
+
+### Deployment
+
+- Frontend: Vercel / Netlify
+- Backend: Render / Railway
+- Database: PostgreSQL (Supabase / Render / Railway)
+
+## 📐 Архитектура
+
+Проектът следва слойна архитектура:
 
 ```
-StudVoice_workspace/
-├── server/                 # Express backend
-│   ├── src/
-│   │   ├── server.js       # Main server, SQLite init
-│   │   └── routes/
-│   │       ├── auth.js     # Authentication endpoints
-│   │       ├── votes.js    # Voting endpoints
-│   │       └── ideas.js    # Ideas endpoints
-│   └── package.json
-│
-└── client/                 # React frontend
-    ├── src/
-    │   ├── pages/
-    │   │   ├── Home.jsx    # Landing page
-    │   │   ├── Login.jsx   # Login form
-    │   │   ├── Register.jsx # Registration form
-    │   │   ├── Votes.jsx   # Voting interface
-    │   │   └── Ideas.jsx   # Ideas interface
-    │   ├── components/
-    │   │   └── Alert.jsx   # Toast alerts
-    │   ├── utils/
-    │   │   └── api.js      # API client
-    │   ├── App.jsx         # Router
-    │   └── index.css       # Tailwind setup
-    ├── public/
-    │   └── index.html
-    ├── package.json
-    ├── tailwind.config.js
-    └── postcss.config.js
+server/
+  src/
+    routes/         → Express route definitions
+    controllers/    → HTTP controllers
+    services/       → Business logic
+    repositories/   → Prisma DB queries
+    middlewares/    → Auth, role checks, validation
+    prisma/         → Schema + migrations
+client/
+  src/
+    pages/          → Основни React страници
+    components/     → UI компоненти
+    api/            → API hooks (React Query)
+    context/        → User/Auth контекст
 ```
 
-## 🛠️ Tech Stack
+**Важно:**
+Контролерите не комуникират директно с Prisma — това минава през services и repositories.
 
-- **Backend**: Node.js, Express 4.18, SQLite3, JWT
-- **Frontend**: React 18.2, React Router 6.20, TailwindCSS 3.3
-- **Authentication**: JWT tokens (stored in localStorage)
-- **Database**: SQLite with 5 tables
+## 🔐 Аутентикация и роли
 
-## 📦 Installation
+Учениците се логват с:
 
-### Prerequisites
-- Node.js 16+ and npm
+- email
+- password
+- schoolCode
 
-### Backend Setup
-```bash
-cd server
-npm install
-npm start  # Runs on http://localhost:5000
+След логин бекендът връща JWT с:
+
+- userId
+- anonymousId
+- role
+- schoolId
+
+Роли в системата:
+
+- STUDENT
+- MODERATOR
+- STUDENT_COUNCIL
+- TEACHER
+- DIRECTOR
+- ADMIN
+
+**Анонимност:**
+Постове и коментари се свързват с anonymousId, а не с userId или email.
+
+## 🧱 Основни функционалности (MVP)
+### Ученици
+
+- Анонимен постинг на идеи и проблеми
+- Гласуване и реакции
+- Коментари
+- AMA сесии
+- Анкети
+- Предизвикателства
+- Седмичен дайджест
+- Опция да покажат името си (по избор)
+
+### Модератори
+
+- Получаване на доклади
+- Издаване на мютове/предупреждения/банове
+- Преглед на обжалвания
+- Преглед на репортиран контент
+
+### Ученически съвет
+
+- Отговаря на идеи
+- Прави анкети, AMA, предизвикателства
+- Обновява статуси на идеи (Under Review, Accepted, Completed)
+
+### Учители
+
+- Могат да отговарят на идеи неанонимно
+
+### Директор
+
+- Вижда аналитики: емоционален индекс, топ теми, тенденции, приети идеи
+- Няма достъп до самоличността на ученици
+
+## 🗂️ API структури (накратко)
+
+Примерни групи:
+
+```
+POST /auth/register
+POST /auth/login
+
+GET /posts
+POST /posts
+POST /posts/:id/react
+POST /posts/:id/report
+
+POST /comments
+
+GET /polls
+POST /polls
+POST /polls/:id/vote
+
+GET /ama
+POST /ama
+POST /ama/:id/question
+
+POST /moderation/mute
+POST /moderation/warn
+POST /moderation/ban
+POST /moderation/review
+
+GET /analytics/school
 ```
 
-### Frontend Setup
-```bash
-cd client
-npm install
-npm start  # Runs on http://localhost:3000
-```
+Пълният API договор ще се изгради постепенно.
 
-## 🔑 Key Endpoints
+## ⚠️ Правила за Copilot / Стил на код
 
-### Authentication
-- `POST /auth/register` - Register new user
-- `POST /auth/login` - User login (returns JWT)
+За да е последователен кодът:
 
-### Votes
-- `GET /votes` - Get all approved votes
-- `POST /votes/create` - Create new vote poll
-- `POST /votes/:id/vote` - Cast vote (yes/no)
+### Backend
 
-### Ideas
-- `GET /ideas` - Get all ideas
-- `POST /ideas/create` - Submit new idea
-- `POST /ideas/:id/upvote` - Upvote idea
+- Route → Controller → Service → Repository → Database
+- Без Prisma заявки в контролери
+- Всички входове се валидират със Zod или Joi
+- Използвай async/await, не callbacks
+- JWT винаги се валидират през middleware
+- Всички защитени маршрути изискват authMiddleware
+- Използвай roleMiddleware за роли (MODERATOR/STUDENT_COUNCIL/DIRECTOR)
 
-## 📱 Database Schema
+### Frontend
 
-### Users Table
-- `id` (INTEGER PRIMARY KEY)
-- `email` (TEXT UNIQUE NOT NULL)
-- `username` (TEXT UNIQUE NOT NULL)
-- `password` (TEXT NOT NULL)
-- `school_code` (TEXT)
-- `created_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
+- Всички API заявки минават през React Query hooks
+- Компоненти трябва да бъдат малки и чисти
+- Tailwind за стилове, без Inline CSS
+- Създай общ Layout за Dashboard
+- Създай protected routes за логнати потребители
 
-### Votes Table
-- `id`, `question`, `optionYes`, `optionNo`, `countYes`, `countNo`, `userId`, `status`, `created_at`
+## 🧪 Тестване
 
-### Ideas Table
-- `id`, `title`, `description`, `userId`, `author`, `status`, `upvotes`, `created_at`
+### За backend:
 
+- Jest / Supertest
+- Тестове за auth, posts, polls, moderation
 
+### За frontend:
+
+- Vitest + React Testing Library
+
+## 🏗️ Roadmap
+### MVP Release
+
+- Auth + roles
+- Posts + comments
+- Reactions
+- Reporting
+- Moderation system
+- Polls
+- AMA
+- Challenges
+- Director analytics dashboard
+- Student council answering
+
+### V2
+
+- Категории по идеи
+- Нотификации
+- Direct messages (само council → students)
+- Heatmap аналитики
+- Mobile app версия
+
+## 📄 Лиценз
+
+За момента: Private, Proprietary (не е open-source).
+
+## 📬 Контакти
+
+За въпроси, предложения или работа по проекта:
+StudVoice Development Team
