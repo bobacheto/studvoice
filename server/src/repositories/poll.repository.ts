@@ -1,71 +1,141 @@
 // IMPORTANT: Repositories contain ALL Prisma/database calls
 // Services must NOT call Prisma directly
 
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
 export class PollRepository {
   /**
-   * Find all polls (paginated)
-   * TODO: Use Prisma to fetch polls with options and vote counts
+   * Find all active polls by school
    */
-  async findAll(page: number, limit: number): Promise<any> {
-    try {
-      // TODO: const skip = (page - 1) * limit
-      // TODO: prisma.poll.findMany({ skip, take: limit, include: { options: true, votes: true } })
-      return { message: 'Find all polls repository' };
-    } catch (error) {
-      throw error;
-    }
+  async findManyActiveBySchool(schoolId: string) {
+    return await prisma.poll.findMany({
+      where: {
+        schoolId,
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gte: new Date() } }
+        ]
+      },
+      include: {
+        options: {
+          include: {
+            _count: {
+              select: { votes: true }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  /**
+   * Find poll by ID with options and vote counts
+   */
+  async findById(pollId: string) {
+    return await prisma.poll.findUnique({
+      where: { id: pollId },
+      include: {
+        options: {
+          include: {
+            _count: {
+              select: { votes: true }
+            }
+          }
+        }
+      }
+    });
   }
 
   /**
    * Create a new poll
-   * TODO: Use Prisma to create poll
    */
-  async create(title: string, description: string | null): Promise<any> {
-    try {
-      // TODO: prisma.poll.create({ data: { title, description, createdAt: new Date() } })
-      return { message: 'Create poll repository' };
-    } catch (error) {
-      throw error;
-    }
+  async createPoll(data: {
+    title: string;
+    description?: string;
+    schoolId: string;
+    createdByAnonymousId: string;
+    expiresAt?: Date;
+  }) {
+    return await prisma.poll.create({
+      data
+    });
   }
 
   /**
    * Create poll options
-   * TODO: Use Prisma to create poll options
    */
-  async createOptions(pollId: string, options: string[]): Promise<any> {
-    try {
-      // TODO: prisma.pollOption.createMany({ data: options.map((text) => ({ pollId, text })) })
-      return { message: 'Create poll options repository' };
-    } catch (error) {
-      throw error;
-    }
+  async createPollOptions(pollId: string, options: string[]) {
+    const optionsData = options.map(text => ({
+      pollId,
+      text
+    }));
+
+    return await prisma.pollOption.createMany({
+      data: optionsData
+    });
   }
 
   /**
-   * Add a vote to a poll option
-   * TODO: Use Prisma to record vote
+   * Find existing vote for a poll by anonymousId
    */
-  async addVote(pollId: string, optionId: string, anonymousId: string): Promise<any> {
-    try {
-      // TODO: prisma.vote.create({ data: { pollId, optionId, anonymousId } })
-      return { message: 'Add vote repository' };
-    } catch (error) {
-      throw error;
-    }
+  async findVote(pollId: string, anonymousId: string) {
+    return await prisma.pollVote.findUnique({
+      where: {
+        pollId_anonymousId: {
+          pollId,
+          anonymousId
+        }
+      }
+    });
   }
 
   /**
-   * Check if user already voted
-   * TODO: Use Prisma to check for existing vote
+   * Create a vote
    */
-  async hasVoted(pollId: string, anonymousId: string): Promise<boolean> {
-    try {
-      // TODO: const vote = prisma.vote.findFirst({ where: { pollId, anonymousId } })
-      // TODO: return !!vote
-      return false;
-    } catch (error) {
-      throw error;
-    }
+  async createVote(data: {
+    pollId: string;
+    pollOptionId: string;
+    anonymousId: string;
+  }) {
+    return await prisma.pollVote.create({
+      data
+    });
+  }
+
+  /**
+   * Get poll results (vote counts per option)
+   */
+  async getResults(pollId: string) {
+    const options = await prisma.pollOption.findMany({
+      where: { pollId },
+      include: {
+        _count: {
+          select: { votes: true }
+        }
+      }
+    });
+
+    return options.map((option: typeof options[number]) => ({
+      optionId: option.id,
+      text: option.text,
+      voteCount: option._count.votes
+    }));
+  }
+
+  /**
+   * Verify poll option belongs to poll
+   */
+  async verifyOptionBelongsToPoll(pollId: string, optionId: string): Promise<boolean> {
+    const option = await prisma.pollOption.findFirst({
+      where: {
+        id: optionId,
+        pollId
+      }
+    });
+
+    return !!option;
   }
 }

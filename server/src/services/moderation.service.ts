@@ -1,78 +1,135 @@
-import { ModerationRepository } from '../repositories/moderation.repository';
+// Moderation Service - Business logic for strikes, reports, and moderation
+// NO Prisma calls - only repository calls
+
+import { strikeRepository } from '../repositories/strike.repository';
+import { reportRepository } from '../repositories/report.repository';
+import { StrikeType, ReportStatus, ReportTargetType } from '@prisma/client';
 
 export class ModerationService {
-  private moderationRepository: ModerationRepository;
-
-  constructor() {
-    this.moderationRepository = new ModerationRepository();
-  }
-
   /**
-   * Mute a user
-   * Only MODERATOR can perform
-   * TODO: Record mute with duration
+   * Issue a strike (MUTE, WARNING, BAN)
    */
-  async muteUser(userId: string, duration: number): Promise<any> {
+  async issueStrike(data: {
+    anonymousId: string;
+    type: StrikeType;
+    durationHours?: number;
+    reason?: string;
+  }): Promise<any> {
     try {
-      // TODO: Validate userId exists
-      // TODO: Validate duration is positive
-      // TODO: Call this.moderationRepository.muteUser()
-      // TODO: Calculate unmute timestamp
-      // TODO: Return confirmation
-      return { message: 'Mute user service' };
+      // Validate duration for mutes
+      if (data.type === 'MUTE' && !data.durationHours) {
+        throw new Error('Duration is required for mutes');
+      }
+
+      // Bans and warnings don't have expiration
+      if (data.type !== 'MUTE' && data.durationHours) {
+        throw new Error('Duration is only allowed for mutes');
+      }
+
+      const strike = await strikeRepository.createStrike({
+        anonymousId: data.anonymousId,
+        type: data.type,
+        durationHours: data.durationHours,
+        reason: data.reason,
+      });
+
+      return strike;
     } catch (error) {
       throw error;
     }
   }
 
   /**
-   * Warn a user
-   * Only MODERATOR can perform
-   * TODO: Record warning with reason
+   * Get active moderation status for a user
    */
-  async warnUser(userId: string, reason: string): Promise<any> {
+  async getActiveStatus(anonymousId: string): Promise<{ isMuted: boolean; isBanned: boolean }> {
     try {
-      // TODO: Validate userId exists
-      // TODO: Validate reason is not empty
-      // TODO: Call this.moderationRepository.warnUser()
-      // TODO: Return confirmation
-      return { message: 'Warn user service' };
+      return await strikeRepository.isMutedOrBanned(anonymousId);
     } catch (error) {
       throw error;
     }
   }
 
   /**
-   * Ban a user
-   * Only MODERATOR can perform
-   * TODO: Record ban with reason
+   * Check if user can perform action (post/comment/react)
    */
-  async banUser(userId: string, reason: string): Promise<any> {
+  async checkCanPerformAction(anonymousId: string): Promise<void> {
     try {
-      // TODO: Validate userId exists
-      // TODO: Validate reason is not empty
-      // TODO: Call this.moderationRepository.banUser()
-      // TODO: Return confirmation
-      return { message: 'Ban user service' };
+      const { isMuted, isBanned } = await this.getActiveStatus(anonymousId);
+
+      if (isBanned) {
+        throw new Error('USER_BANNED');
+      }
+
+      if (isMuted) {
+        throw new Error('USER_MUTED');
+      }
     } catch (error) {
       throw error;
     }
   }
 
   /**
-   * Review reported content
-   * Only MODERATOR can perform
-   * TODO: Find report, apply action (approve/reject)
+   * Get all strikes for a user (for moderation history)
    */
-  async reviewReport(reportId: string, action: string): Promise<any> {
+  async getStrikeHistory(anonymousId: string): Promise<any[]> {
     try {
-      // TODO: Validate reportId exists
-      // TODO: Validate action (approve or reject)
-      // TODO: Call this.moderationRepository.updateReportStatus()
-      // TODO: Return confirmation
-      return { message: 'Review report service' };
+      return await strikeRepository.findAllByAnonymousId(anonymousId);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Create a report for a post or comment
+   */
+  async createReport(data: {
+    anonymousId: string;
+    targetType: ReportTargetType;
+    targetId: string;
+    reason: string;
+  }): Promise<any> {
+    try {
+      const reportData: any = {
+        anonymousId: data.anonymousId,
+        targetType: data.targetType,
+        reason: data.reason,
+      };
+
+      if (data.targetType === 'POST') {
+        reportData.postId = data.targetId;
+      } else if (data.targetType === 'COMMENT') {
+        reportData.commentId = data.targetId;
+      }
+
+      const report = await reportRepository.createReport(reportData);
+      return report;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Get reports for a school
+   */
+  async getReports(schoolId: string, status?: ReportStatus): Promise<any[]> {
+    try {
+      return await reportRepository.findManyBySchool(schoolId, status);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Update report status
+   */
+  async updateReportStatus(reportId: string, status: ReportStatus): Promise<any> {
+    try {
+      return await reportRepository.updateStatus(reportId, status);
     } catch (error) {
       throw error;
     }
   }
 }
+
+export const moderationService = new ModerationService();

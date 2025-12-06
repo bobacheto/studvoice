@@ -1,23 +1,15 @@
-import React from 'react';
-import { NavBar } from './NavBar';
+import { ReactNode } from 'react';
+import NavBar from './NavBar';
 
 interface LayoutProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
-/**
- * Layout Component
- * TODO: Provide common structure for all dashboard pages
- * TODO: Include NavBar
- * TODO: Include sidebar or navigation menu
- * TODO: Include footer if needed
- */
-export const Layout: React.FC<LayoutProps> = ({ children }) => {
+export default function Layout({ children }: LayoutProps) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <NavBar />
-      <main className="flex-1">{children}</main>
-      {/* TODO: Add footer if needed */}
+      <main>{children}</main>
     </div>
   );
-};
+}

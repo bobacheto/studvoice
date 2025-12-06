@@ -1,87 +1,131 @@
-import React, { createContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { authAPI, AuthResponse } from '../api/auth';
 
-/**
- * AuthContext
- * TODO: Manage global auth state
- * TODO: Store user, isAuthenticated, JWT token
- * TODO: Provide login, logout, register functions
- */
+interface User {
+  userId: string;
+  anonymousId: string;
+  email: string;
+  role: string;
+  schoolId: string;
+  firstName: string;
+  lastName: string;
+}
 
 interface AuthContextType {
-  user: any | null;
-  isAuthenticated: boolean;
-  loading: boolean;
+  user: User | null;
+  accessToken: string | null;
+  refreshToken: string | null;
   login: (email: string, password: string, schoolCode: string) => Promise<void>;
-  register: (email: string, password: string, schoolCode: string) => Promise<void>;
-  logout: () => Promise<void>;
-  setUser: (user: any) => void;
+  register: (email: string, password: string, firstName: string, lastName: string, schoolCode: string) => Promise<void>;
+  logout: () => void;
+  isLoading: boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-interface AuthProviderProps {
-  children: React.ReactNode;
-}
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-/**
- * AuthProvider Component
- * TODO: Initialize auth state from localStorage
- * TODO: Implement login logic
- * TODO: Implement register logic
- * TODO: Implement logout logic
- */
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<any | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // Load user from localStorage on mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    const storedAccessToken = localStorage.getItem('accessToken');
+    const storedRefreshToken = localStorage.getItem('refreshToken');
 
-  const login = useCallback(async (email: string, password: string, schoolCode: string) => {
-    try {
-      // TODO: Call authAPI.login
-      // TODO: Store JWT token in localStorage
-      // TODO: Set user in state
-      // TODO: Set isAuthenticated to true
-    } catch (error) {
-      // TODO: Handle error
-      throw error;
+    if (storedUser && storedAccessToken && storedRefreshToken) {
+      try {
+        setUser(JSON.parse(storedUser));
+        setAccessToken(storedAccessToken);
+        setRefreshToken(storedRefreshToken);
+      } catch (error) {
+        console.error('Failed to parse stored user:', error);
+        localStorage.clear();
+      }
     }
+    setIsLoading(false);
   }, []);
 
-  const register = useCallback(async (email: string, password: string, schoolCode: string) => {
+  const login = async (email: string, password: string, schoolCode: string) => {
     try {
-      // TODO: Call authAPI.register
-      // TODO: Store JWT token in localStorage
-      // TODO: Set user in state
-      // TODO: Set isAuthenticated to true
+      const response: AuthResponse = await authAPI.login({ email, password, schoolCode });
+      
+      // Save to state
+      setUser(response.user);
+      setAccessToken(response.accessToken);
+      setRefreshToken(response.refreshToken);
+
+      // Save to localStorage
+      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem('accessToken', response.accessToken);
+      localStorage.setItem('refreshToken', response.refreshToken);
     } catch (error) {
-      // TODO: Handle error
+      console.error('Login failed:', error);
       throw error;
     }
-  }, []);
-
-  const logout = useCallback(async () => {
-    try {
-      // TODO: Call authAPI.logout
-      // TODO: Clear JWT token from localStorage
-      // TODO: Clear user state
-      // TODO: Set isAuthenticated to false
-    } catch (error) {
-      // TODO: Handle error
-      throw error;
-    }
-  }, []);
-
-  // TODO: Initialize auth state from localStorage on component mount
-
-  const value: AuthContextType = {
-    user,
-    isAuthenticated,
-    loading,
-    login,
-    register,
-    logout,
-    setUser,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const register = async (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    schoolCode: string
+  ) => {
+    try {
+      const response: AuthResponse = await authAPI.register({
+        email,
+        password,
+        firstName,
+        lastName,
+        schoolCode,
+      });
+
+      // Save to state
+      setUser(response.user);
+      setAccessToken(response.accessToken);
+      setRefreshToken(response.refreshToken);
+
+      // Save to localStorage
+      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem('accessToken', response.accessToken);
+      localStorage.setItem('refreshToken', response.refreshToken);
+    } catch (error) {
+      console.error('Registration failed:', error);
+      throw error;
+    }
+  };
+
+  const logout = () => {
+    setUser(null);
+    setAccessToken(null);
+    setRefreshToken(null);
+    authAPI.logout();
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        accessToken,
+        refreshToken,
+        login,
+        register,
+        logout,
+        isLoading,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
 };

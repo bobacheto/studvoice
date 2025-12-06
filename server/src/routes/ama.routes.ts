@@ -1,45 +1,57 @@
+// AMA Routes - Define HTTP endpoints for Ask Me Anything sessions
+// Wire controllers with authentication and authorization middleware
+
 import { Router } from 'express';
 import { AMAController } from '../controllers/ama.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { roleMiddleware } from '../middlewares/role.middleware';
-import { validationMiddleware } from '../middlewares/validation.middleware';
 
 const router = Router();
 const amaController = new AMAController();
 
-/**
- * GET /ama
- * Retrieve all AMA sessions
- */
-router.get('/', authMiddleware, async (req, res) => {
-  // TODO: Call amaController.getAMASessions
-  res.json({ message: 'Get AMA sessions endpoint' });
-});
+// GET /ama - Get all active AMA sessions (all authenticated users)
+router.get(
+  '/',
+  authMiddleware,
+  (req, res) => amaController.getSessions(req, res)
+);
 
-/**
- * POST /ama
- * Create a new AMA session (only STUDENT_COUNCIL can create)
- */
+// POST /ama - Create a new AMA session (TEACHER, STUDENT_COUNCIL, DIRECTOR)
 router.post(
   '/',
   authMiddleware,
-  roleMiddleware(['STUDENT_COUNCIL']),
-  validationMiddleware,
-  async (req, res) => {
-    // TODO: Validate request body
-    // TODO: Call amaController.createAMASession
-    res.json({ message: 'Create AMA session endpoint' });
-  }
+  roleMiddleware(['TEACHER', 'STUDENT_COUNCIL', 'DIRECTOR', 'ADMIN']),
+  (req, res) => amaController.createSession(req, res)
 );
 
-/**
- * POST /ama/:id/question
- * Submit a question to an AMA session
- */
-router.post('/:id/question', authMiddleware, validationMiddleware, async (req, res) => {
-  // TODO: Validate request body (question text)
-  // TODO: Call amaController.submitQuestion
-  res.json({ message: 'Submit AMA question endpoint' });
-});
+// GET /ama/:id/questions - Get questions for an AMA session (all authenticated users)
+router.get(
+  '/:id/questions',
+  authMiddleware,
+  (req, res) => amaController.getQuestions(req, res)
+);
+
+// POST /ama/:id/questions - Submit a question (STUDENT and above)
+router.post(
+  '/:id/questions',
+  authMiddleware,
+  (req, res) => amaController.submitQuestion(req, res)
+);
+
+// POST /ama/:id/questions/:questionId/answer - Answer a question (TEACHER, STUDENT_COUNCIL, DIRECTOR)
+router.post(
+  '/:id/questions/:questionId/answer',
+  authMiddleware,
+  roleMiddleware(['TEACHER', 'STUDENT_COUNCIL', 'DIRECTOR', 'ADMIN']),
+  (req, res) => amaController.answerQuestion(req, res)
+);
+
+// PATCH /ama/:id/questions/:questionId/status - Update question status (TEACHER and above)
+router.patch(
+  '/:id/questions/:questionId/status',
+  authMiddleware,
+  roleMiddleware(['TEACHER', 'STUDENT_COUNCIL', 'DIRECTOR', 'ADMIN']),
+  (req, res) => amaController.updateQuestionStatus(req, res)
+);
 
 export default router;

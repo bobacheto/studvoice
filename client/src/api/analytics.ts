@@ -1,26 +1,32 @@
-import axios from 'axios';
+import axiosInstance from './axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export interface WeeklyDigest {
+  totalPosts: number;
+  totalComments: number;
+  totalReactions: number;
+  topPosts: Array<{
+    id: string;
+    title?: string;
+    content: string;
+    reactionCount: number;
+  }>;
+  mostActiveDay: string;
+}
 
-/**
- * Analytics API
- * TODO: Implement analytics endpoints
- * TODO: Only DIRECTOR can access
- */
 export const analyticsAPI = {
-  /**
-   * Get school analytics
-   * TODO: GET /analytics/school
-   * TODO: Returns: emotional index, top topics, trends, accepted ideas
-   * TODO: NO student identity information
-   */
+  getWeeklyDigest: async (): Promise<{ digest: WeeklyDigest }> => {
+    const response = await axiosInstance.get('/analytics/weekly-digest');
+    return response.data;
+  },
+
+  getDirectorAnalytics: async (): Promise<any> => {
+    const response = await axiosInstance.get('/analytics/director');
+    return response.data;
+  },
+
   getSchoolAnalytics: async () => {
-    try {
-      // TODO: Get JWT token from localStorage
-      // TODO: const response = axios.get(`${API_URL}/analytics/school`, { headers: { Authorization: `Bearer ${token}` } })
-      return { message: 'Get school analytics API' };
-    } catch (error) {
-      throw error;
-    }
+    const response = await axiosInstance.get('/analytics/school');
+    return response.data;
   },
 };
+

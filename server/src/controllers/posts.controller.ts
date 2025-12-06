@@ -1,79 +1,216 @@
+// Posts Controller - HTTP request handlers for posts and reactions
+// Validates input and calls service layer
+
 import { Request, Response } from 'express';
-import { PostsService } from '../services/posts.service';
+import { postsService } from '../services/posts.service';
+import { CreatePostSchema, UpdatePostStatusSchema, CreateReactionSchema } from '../utils/validation';
+import { IdeaStatus } from '@prisma/client';
 
 export class PostsController {
-  private postsService: PostsService;
-
-  constructor() {
-    this.postsService = new PostsService();
-  }
-
   /**
-   * Get all posts (paginated)
-   * TODO: Extract pagination params, call postsService.getPosts
+   * GET /posts - Get all posts for user's school
    */
   async getPosts(req: Request, res: Response): Promise<void> {
     try {
-      // TODO: Extract page, limit from query params
-      // TODO: Call this.postsService.getPosts()
-      // TODO: Return paginated posts
-      res.json({ message: 'Posts retrieved successfully' });
-    } catch (error) {
-      // TODO: Handle error
-      res.status(500).json({ error: 'Failed to retrieve posts' });
+      const schoolId = req.user!.schoolId;
+      const status = req.query.status as IdeaStatus | undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
+
+      const posts = await postsService.getPosts(schoolId, { status, limit, offset });
+
+      res.status(200).json({
+        status: 'success',
+        data: { posts },
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: 'error',
+        message: error.message || 'Failed to retrieve posts',
+      });
     }
   }
 
   /**
-   * Create a new anonymous post
-   * Posts are linked to anonymousId, not userId
-   * TODO: Extract content, optionally title, call postsService.createPost
+   * GET /posts/:id - Get a single post by ID
+   */
+  async getPostById(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+
+      const post = await postsService.getPostById(id);
+
+      res.status(200).json({
+        status: 'success',
+        data: { post },
+      });
+    } catch (error: any) {
+      if (error.message === 'POST_NOT_FOUND') {
+        res.status(404).json({
+          status: 'error',
+          message: 'Post not found',
+        });
+        return;
+      }
+
+      res.status(500).json({
+        status: 'error',
+        message: error.message || 'Failed to retrieve post',
+      });
+    }
+  }
+
+  /**
+   * POST /posts - Create a new post
    */
   async createPost(req: Request, res: Response): Promise<void> {
     try {
-      // TODO: Extract anonymousId from JWT token in request
-      // TODO: Extract title (optional), content from request body
-      // TODO: Call this.postsService.createPost()
-      // TODO: Return created post with anonymousId
-      res.status(201).json({ message: 'Post created successfully' });
-    } catch (error) {
-      // TODO: Handle error
-      res.status(500).json({ error: 'Failed to create post' });
+      // Validate input
+      const validation = CreatePostSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Validation failed',
+          errors: validation.error.errors,
+        });
+        return;
+      }
+
+      const { title, content } = validation.data;
+      const anonymousId = req.user!.anonymousId;
+      const schoolId = req.user!.schoolId;
+
+      const post = await postsService.createPost({
+        anonymousId,
+        schoolId,
+        title,
+        content,
+      });
+
+      res.status(201).json({
+        status: 'success',
+        data: { post },
+      });
+    } catch (error: any) {
+      if (error.message === 'USER_BANNED') {
+        res.status(403).json({
+          status: 'error',
+          message: 'You are banned and cannot create posts',
+        });
+        return;
+      }
+
+      if (error.message === 'USER_MUTED') {
+        res.status(403).json({
+          status: 'error',
+          message: 'You are muted and cannot create posts',
+        });
+        return;
+      }
+
+      res.status(500).json({
+        status: 'error',
+        message: error.message || 'Failed to create post',
+      });
     }
   }
 
   /**
-   * Add a reaction (emoji) to a post
-   * TODO: Extract postId, emoji, call postsService.addReaction
+   * PATCH /posts/:id/status - Update post status (moderators only)
    */
-  async addReaction(req: Request, res: Response): Promise<void> {
+  async updatePostStatus(req: Request, res: Response): Promise<void> {
     try {
-      // TODO: Extract postId from URL params
-      // TODO: Extract anonymousId from JWT token
-      // TODO: Extract emoji from request body
-      // TODO: Call this.postsService.addReaction()
-      // TODO: Return updated post
-      res.json({ message: 'Reaction added successfully' });
-    } catch (error) {
-      // TODO: Handle error
-      res.status(500).json({ error: 'Failed to add reaction' });
+      const { id } = req.params;
+
+      // Validate input
+      const validation = UpdatePostStatusSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Validation failed',
+          errors: validation.error.errors,
+        });
+        return;
+      }
+
+      const { status } = validation.data;
+
+      const updatedPost = await postsService.updatePostStatus(id, status as IdeaStatus);
+
+      res.status(200).json({
+        status: 'success',
+        data: { post: updatedPost },
+      });
+    } catch (error: any) {
+      if (error.message === 'POST_NOT_FOUND') {
+        res.status(404).json({
+          status: 'error',
+          message: 'Post not found',
+        });
+        return;
+      }
+
+      res.status(500).json({
+        status: 'error',
+        message: error.message || 'Failed to update post status',
+      });
     }
   }
 
   /**
-   * Report a post for moderation
-   * TODO: Extract postId, reason, call postsService.reportPost
+   * POST /posts/:id/reactions - Toggle reaction on a post
    */
-  async reportPost(req: Request, res: Response): Promise<void> {
+  async toggleReaction(req: Request, res: Response): Promise<void> {
     try {
-      // TODO: Extract postId from URL params
-      // TODO: Extract reason from request body
-      // TODO: Call this.postsService.reportPost()
-      // TODO: Return confirmation
-      res.json({ message: 'Post reported successfully' });
-    } catch (error) {
-      // TODO: Handle error
-      res.status(500).json({ error: 'Failed to report post' });
+      const { id } = req.params;
+
+      // Validate input
+      const validation = CreateReactionSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Validation failed',
+          errors: validation.error.errors,
+        });
+        return;
+      }
+
+      const { type } = validation.data;
+      const anonymousId = req.user!.anonymousId;
+
+      const result = await postsService.toggleReaction({
+        postId: id,
+        anonymousId,
+        type: type as any,
+      });
+
+      res.status(200).json({
+        status: 'success',
+        data: result,
+      });
+    } catch (error: any) {
+      if (error.message === 'POST_NOT_FOUND') {
+        res.status(404).json({
+          status: 'error',
+          message: 'Post not found',
+        });
+        return;
+      }
+
+      if (error.message === 'USER_BANNED' || error.message === 'USER_MUTED') {
+        res.status(403).json({
+          status: 'error',
+          message: 'You cannot react to posts',
+        });
+        return;
+      }
+
+      res.status(500).json({
+        status: 'error',
+        message: error.message || 'Failed to toggle reaction',
+      });
     }
   }
 }
+
+export const postsController = new PostsController();

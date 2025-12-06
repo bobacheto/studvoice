@@ -1,8 +1,8 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
-
-// Pages
+import ProtectedRoute from './components/ProtectedRoute';
+import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -10,42 +10,87 @@ import Posts from './pages/Posts';
 import Polls from './pages/Polls';
 import AMA from './pages/AMA';
 import Challenges from './pages/Challenges';
-import DirectorAnalytics from './pages/DirectorAnalytics';
 
-/**
- * App Component
- * TODO: Set up routing
- * TODO: Implement protected routes for authenticated users
- * TODO: Redirect unauthenticated users to login
- */
-export const App: React.FC = () => {
-  // TODO: Create ProtectedRoute component for authenticated pages
-  // TODO: Create RoleProtectedRoute component for role-specific pages
+// Create React Query client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
+function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-          {/* Protected Routes */}
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/posts" element={<Posts />} />
-          <Route path="/polls" element={<Polls />} />
-          <Route path="/ama" element={<AMA />} />
-          <Route path="/challenges" element={<Challenges />} />
+            {/* Protected Routes */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Dashboard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/posts"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Posts />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/polls"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Polls />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ama"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <AMA />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/challenges"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Challenges />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Role-Protected Routes */}
-          <Route path="/analytics" element={<DirectorAnalytics />} />
-
-          {/* Redirect home to dashboard or login */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+            {/* Default Redirect */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
   );
-};
+}
 
 export default App;

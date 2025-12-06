@@ -152,7 +152,7 @@ export class UserRepository {
    * @param userId - User ID
    * @param role - New role
    */
-  async updateUserRole(userId: string, role: string) {
+  async updateUserRole(userId: string, role: import('@prisma/client').Role) {
     return prisma.user.update({
       where: { id: userId },
       data: { role },

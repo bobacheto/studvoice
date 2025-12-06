@@ -10,6 +10,68 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum Role {
+  STUDENT
+  MODERATOR
+  STUDENT_COUNCIL
+  TEACHER
+  DIRECTOR
+  ADMIN
+}
+
+enum IdeaStatus {
+  PENDING
+  UNDER_REVIEW
+  ACCEPTED
+  COMPLETED
+  REJECTED
+}
+
+enum ReactionType {
+  LIKE
+  SUPPORT
+  GREAT
+  THINKING
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWED
+  RESOLVED
+}
+
+enum ReportTargetType {
+  POST
+  COMMENT
+}
+
+enum StrikeType {
+  MUTE
+  WARNING
+  BAN
+}
+
+enum AMAQuestionStatus {
+  PENDING
+  ANSWERED
+  REJECTED
+}
+
+enum ChallengeType {
+  GRATITUDE
+  IDEA_SPRINT
+  PROBLEM_SOLVER
+  CUSTOM
+}
+
+// ==========================================
+// CORE MODELS (AUTH)
+// ==========================================
+
 // School entity - represents a school using StudVoice
 model School {
   id        String   @id @default(cuid())
@@ -19,10 +81,11 @@ model School {
   updatedAt DateTime @updatedAt
 
   // Relations
-  users User[]
-  posts Post[]
-  polls Poll[]
-  amas  AMA[]
+  users      User[]
+  posts      Post[]
+  polls      Poll[]
+  amas       AMA[]
+  challenges Challenge[]
 
   @@index([code])
 }
@@ -33,15 +96,20 @@ model User {
   email         String   @unique
   passwordHash  String   // bcrypt hashed password
   anonymousId   String   @unique // For anonymous posts/comments
-  role          String   @default("STUDENT") // STUDENT, MODERATOR, STUDENT_COUNCIL, TEACHER, DIRECTOR, ADMIN
+  role          Role     @default(STUDENT)
   schoolId      String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   isActive      Boolean  @default(true)
 
   // Relations
-  school        School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  refreshTokens RefreshToken[]
+  school              School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  refreshTokens       RefreshToken[]
+  createdAMAs         AMA[]
+  amaAnswers          AMAAnswer[]
+  createdChallenges   Challenge[]
+  ideaStatusChanges   IdeaStatusHistory[]
+  moderationActions   ModerationAction[]
 
   @@index([email])
   @@index([schoolId])
@@ -63,26 +131,32 @@ model RefreshToken {
   @@index([token])
 }
 
+// ==========================================
+// POSTS & COMMENTS
+// ==========================================
+
 // Post entity - anonymous student ideas/problems
 model Post {
-  id          String   @id @default(cuid())
-  anonymousId String   // Not userId - maintain anonymity
+  id          String      @id @default(cuid())
+  anonymousId String      // Not userId - maintain anonymity
   title       String?
   content     String
-  status      String   @default("PENDING") // PENDING, UNDER_REVIEW, ACCEPTED, COMPLETED, REJECTED
+  status      IdeaStatus  @default(PENDING)
   schoolId    String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   // Relations
-  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  comments    Comment[]
-  reactions   Reaction[]
-  reports     Report[]
+  school            School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  comments          Comment[]
+  reactions         Reaction[]
+  reports           Report[]
+  statusHistory     IdeaStatusHistory[]
 
   @@index([anonymousId])
   @@index([schoolId])
   @@index([status])
+  @@index([createdAt])
 }
 
 // Comment entity - anonymous responses to posts
@@ -96,134 +170,268 @@ model Comment {
 
   // Relations
   post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reports     Report[]
 
+  @@index([postId])
+  @@index([anonymousId])
+  @@index([createdAt])
+}
+
+// Reaction entity - positive reactions on posts
+model Reaction {
+  id          String       @id @default(cuid())
+  postId      String
+  anonymousId String       // Not userId - maintain anonymity
+  type        ReactionType
+  createdAt   DateTime     @default(now())
+
+  // Relations
+  post        Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, anonymousId, type])
   @@index([postId])
   @@index([anonymousId])
 }
 
-// Reaction entity - emoji reactions on posts
-model Reaction {
-  id          String   @id @default(cuid())
-  postId      String
-  anonymousId String   // Not userId - maintain anonymity
-  emoji       String
-  createdAt   DateTime @default(now())
+// ==========================================
+// MODERATION
+// ==========================================
 
-  // Relations
-  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  @@unique([postId, anonymousId, emoji])
-  @@index([postId])
-}
-
-// Report entity - for moderation
+// Report entity - for reporting posts or comments
 model Report {
-  id        String   @id @default(cuid())
-  postId    String
-  reason    String
-  status    String   @default("PENDING") // PENDING, APPROVED, REJECTED
-  createdAt DateTime @default(now())
-  reviewedAt DateTime?
+  id             String           @id @default(cuid())
+  postId         String?
+  commentId      String?
+  anonymousId    String           // Reporter's anonymousId
+  targetType     ReportTargetType
+  reason         String
+  status         ReportStatus     @default(OPEN)
+  createdAt      DateTime         @default(now())
+  reviewedAt     DateTime?
 
   // Relations
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post           Post?            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment        Comment?         @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@index([postId])
+  @@index([commentId])
   @@index([status])
+  @@index([createdAt])
 }
+
+// Strike entity - tracks mutes, warnings, and bans
+model Strike {
+  id             String     @id @default(cuid())
+  anonymousId    String     // Target user's anonymousId
+  type           StrikeType
+  reason         String?
+  durationHours  Int?       // For mutes - how long the mute lasts
+  createdAt      DateTime   @default(now())
+  expiresAt      DateTime?  // Calculated from durationHours
+
+  @@index([anonymousId])
+  @@index([type])
+  @@index([expiresAt])
+}
+
+// ModerationAction entity - logs all moderation decisions
+model ModerationAction {
+  id                 String   @id @default(cuid())
+  moderatorId        String   // User performing the action
+  targetAnonymousId  String   // Target user's anonymousId
+  action             String   // Description of action taken
+  reason             String?
+  createdAt          DateTime @default(now())
+
+  // Relations
+  moderator          User     @relation(fields: [moderatorId], references: [id], onDelete: Cascade)
+
+  @@index([moderatorId])
+  @@index([targetAnonymousId])
+  @@index([createdAt])
+}
+
+// ==========================================
+// POLLS
+// ==========================================
 
 // Poll entity - created by STUDENT_COUNCIL
 model Poll {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  schoolId    String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String       @id @default(cuid())
+  title              String
+  description        String?
+  schoolId           String
+  createdByAnonymousId String     // Creator's anonymousId
+  createdAt          DateTime     @default(now())
+  expiresAt          DateTime?
+  updatedAt          DateTime     @updatedAt
 
   // Relations
-  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  options     PollOption[]
-  votes       Vote[]
+  school             School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  options            PollOption[]
+  votes              PollVote[]
 
   @@index([schoolId])
+  @@index([createdByAnonymousId])
+  @@index([expiresAt])
 }
 
 // PollOption entity - individual poll choices
 model PollOption {
-  id        String @id @default(cuid())
+  id        String     @id @default(cuid())
   pollId    String
   text      String
-  createdAt DateTime @default(now())
+  createdAt DateTime   @default(now())
 
   // Relations
-  poll      Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  votes     Vote[]
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes     PollVote[]
 
   @@index([pollId])
 }
 
-// Vote entity - anonymous votes on polls
-model Vote {
-  id          String   @id @default(cuid())
-  pollId      String
-  optionId    String
-  anonymousId String   // Not userId - maintain anonymity
-  createdAt   DateTime @default(now())
+// PollVote entity - anonymous votes on polls
+model PollVote {
+  id             String     @id @default(cuid())
+  pollId         String
+  pollOptionId   String
+  anonymousId    String     // Not userId - maintain anonymity
+  createdAt      DateTime   @default(now())
 
   // Relations
-  poll        Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  option      PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  poll           Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  pollOption     PollOption @relation(fields: [pollOptionId], references: [id], onDelete: Cascade)
 
   @@unique([pollId, anonymousId])
   @@index([pollId])
-  @@index([optionId])
+  @@index([pollOptionId])
+  @@index([anonymousId])
 }
 
-// AMA entity - Ask Me Anything sessions by STUDENT_COUNCIL
+// ==========================================
+// AMA (ASK ME ANYTHING)
+// ==========================================
+
+// AMA entity - Ask Me Anything sessions
 model AMA {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  startTime   DateTime
-  endTime     DateTime
-  schoolId    String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String        @id @default(cuid())
+  title          String
+  description    String?
+  schoolId       String
+  createdByUserId String       // Teacher or Student Council member
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   // Relations
-  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  questions   AMAQuestion[]
+  school         School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdBy      User          @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  questions      AMAQuestion[]
 
   @@index([schoolId])
+  @@index([createdByUserId])
+  @@index([isActive])
 }
 
 // AMAQuestion entity - anonymous questions in AMA sessions
 model AMAQuestion {
-  id          String   @id @default(cuid())
+  id          String             @id @default(cuid())
   amaId       String
-  anonymousId String   // Not userId - maintain anonymity
-  question    String
-  answer      String?
-  answeredAt  DateTime?
-  createdAt   DateTime @default(now())
+  anonymousId String             // Not userId - maintain anonymity
+  content     String
+  status      AMAQuestionStatus  @default(PENDING)
+  createdAt   DateTime           @default(now())
 
   // Relations
-  ama         AMA      @relation(fields: [amaId], references: [id], onDelete: Cascade)
+  ama         AMA                @relation(fields: [amaId], references: [id], onDelete: Cascade)
+  answer      AMAAnswer?
 
   @@index([amaId])
   @@index([anonymousId])
+  @@index([status])
 }
 
-// Moderation entity - for tracking moderator actions
-model Moderation {
-  id        String   @id @default(cuid())
-  userId    String   // The user being moderated
-  action    String   // MUTE, WARN, BAN
-  reason    String?
-  expiresAt DateTime?
-  createdAt DateTime @default(now())
+// AMAAnswer entity - answers to AMA questions
+model AMAAnswer {
+  id                String      @id @default(cuid())
+  questionId        String      @unique
+  answeredByUserId  String      // Teacher or Student Council member
+  content           String
+  createdAt         DateTime    @default(now())
 
-  @@index([userId])
-  @@index([action])
+  // Relations
+  question          AMAQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answeredBy        User        @relation(fields: [answeredByUserId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@index([answeredByUserId])
+}
+
+// ==========================================
+// CHALLENGES
+// ==========================================
+
+// Challenge entity - gamification challenges
+model Challenge {
+  id              String                @id @default(cuid())
+  title           String
+  description     String
+  type            ChallengeType
+  schoolId        String
+  createdByUserId String
+  startAt         DateTime
+  endAt           DateTime
+  isActive        Boolean               @default(true)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  // Relations
+  school          School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdBy       User                  @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  submissions     ChallengeSubmission[]
+
+  @@index([schoolId])
+  @@index([createdByUserId])
+  @@index([type])
+  @@index([isActive])
+  @@index([startAt])
+  @@index([endAt])
+}
+
+// ChallengeSubmission entity - student submissions for challenges
+model ChallengeSubmission {
+  id          String    @id @default(cuid())
+  challengeId String
+  anonymousId String    // Not userId - maintain anonymity
+  content     String
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@index([challengeId])
+  @@index([anonymousId])
+  @@index([createdAt])
+}
+
+// ==========================================
+// IDEA STATUS TRACKING
+// ==========================================
+
+// IdeaStatusHistory entity - tracks status changes for posts
+model IdeaStatusHistory {
+  id              String     @id @default(cuid())
+  postId          String
+  fromStatus      IdeaStatus
+  toStatus        IdeaStatus
+  changedByUserId String
+  createdAt       DateTime   @default(now())
+
+  // Relations
+  post            Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  changedBy       User       @relation(fields: [changedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([changedByUserId])
+  @@index([createdAt])
 }

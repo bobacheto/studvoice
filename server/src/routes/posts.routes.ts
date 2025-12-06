@@ -1,49 +1,51 @@
+// Posts Routes - Define HTTP endpoints for posts and reactions
+
 import { Router } from 'express';
-import { PostsController } from '../controllers/posts.controller';
+import { postsController } from '../controllers/posts.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
-import { validationMiddleware } from '../middlewares/validation.middleware';
+import { roleMiddleware } from '../middlewares/role.middleware';
 
 const router = Router();
-const postsController = new PostsController();
+
+// All routes require authentication
+router.use(authMiddleware);
 
 /**
  * GET /posts
- * Retrieve all posts (paginated)
+ * Get all posts for user's school
+ * Query params: status?, limit?, offset?
  */
-router.get('/', authMiddleware, async (req, res) => {
-  // TODO: Call postsController.getPosts
-  res.json({ message: 'Get posts endpoint' });
-});
+router.get('/', postsController.getPosts.bind(postsController));
+
+/**
+ * GET /posts/:id
+ * Get a single post by ID
+ */
+router.get('/:id', postsController.getPostById.bind(postsController));
 
 /**
  * POST /posts
- * Create a new anonymous post
- * Anonymous posts are linked to anonymousId, not userId
+ * Create a new post
+ * Body: { title?, content }
  */
-router.post('/', authMiddleware, validationMiddleware, async (req, res) => {
-  // TODO: Validate request body
-  // TODO: Call postsController.createPost
-  res.json({ message: 'Create post endpoint' });
-});
+router.post('/', postsController.createPost.bind(postsController));
 
 /**
- * POST /posts/:id/react
- * Add a reaction (emoji) to a post
+ * PATCH /posts/:id/status
+ * Update post status (moderators/student council only)
+ * Body: { status: IdeaStatus }
  */
-router.post('/:id/react', authMiddleware, validationMiddleware, async (req, res) => {
-  // TODO: Validate request body
-  // TODO: Call postsController.addReaction
-  res.json({ message: 'Add reaction endpoint' });
-});
+router.patch(
+  '/:id/status',
+  roleMiddleware(['MODERATOR', 'STUDENT_COUNCIL', 'DIRECTOR', 'ADMIN']),
+  postsController.updatePostStatus.bind(postsController)
+);
 
 /**
- * POST /posts/:id/report
- * Report a post for moderation
+ * POST /posts/:id/reactions
+ * Toggle reaction on a post
+ * Body: { type: ReactionType }
  */
-router.post('/:id/report', authMiddleware, validationMiddleware, async (req, res) => {
-  // TODO: Validate request body
-  // TODO: Call postsController.reportPost
-  res.json({ message: 'Report post endpoint' });
-});
+router.post('/:id/reactions', postsController.toggleReaction.bind(postsController));
 
 export default router;

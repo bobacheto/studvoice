@@ -1,45 +1,34 @@
+// Polls Routes - Define HTTP endpoints for polls and voting
+// Wire controllers with authentication and authorization middleware
+
 import { Router } from 'express';
 import { PollsController } from '../controllers/polls.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { roleMiddleware } from '../middlewares/role.middleware';
-import { validationMiddleware } from '../middlewares/validation.middleware';
 
 const router = Router();
 const pollsController = new PollsController();
 
-/**
- * GET /polls
- * Retrieve all polls
- */
-router.get('/', authMiddleware, async (req, res) => {
-  // TODO: Call pollsController.getPolls
-  res.json({ message: 'Get polls endpoint' });
-});
+// GET /polls - Get all active polls (all authenticated users)
+router.get(
+  '/',
+  authMiddleware,
+  (req, res) => pollsController.getPolls(req, res)
+);
 
-/**
- * POST /polls
- * Create a new poll (only STUDENT_COUNCIL can create)
- */
+// POST /polls - Create a new poll (STUDENT_COUNCIL, MODERATOR, TEACHER, DIRECTOR)
 router.post(
   '/',
   authMiddleware,
-  roleMiddleware(['STUDENT_COUNCIL']),
-  validationMiddleware,
-  async (req, res) => {
-    // TODO: Validate request body
-    // TODO: Call pollsController.createPoll
-    res.json({ message: 'Create poll endpoint' });
-  }
+  roleMiddleware(['STUDENT_COUNCIL', 'MODERATOR', 'TEACHER', 'DIRECTOR', 'ADMIN']),
+  (req, res) => pollsController.createPoll(req, res)
 );
 
-/**
- * POST /polls/:id/vote
- * Vote on a poll option
- */
-router.post('/:id/vote', authMiddleware, validationMiddleware, async (req, res) => {
-  // TODO: Validate request body (optionId)
-  // TODO: Call pollsController.voteOnPoll
-  res.json({ message: 'Vote on poll endpoint' });
-});
+// POST /polls/:id/vote - Vote on a poll (all authenticated users)
+router.post(
+  '/:id/vote',
+  authMiddleware,
+  (req, res) => pollsController.vote(req, res)
+);
 
 export default router;

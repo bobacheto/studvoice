@@ -1,19 +1,26 @@
+// Comments Routes - Define HTTP endpoints for comments
+
 import { Router } from 'express';
-import { CommentsController } from '../controllers/comments.controller';
+import { commentsController } from '../controllers/comments.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
-import { validationMiddleware } from '../middlewares/validation.middleware';
 
 const router = Router();
-const commentsController = new CommentsController();
+
+// All routes require authentication
+router.use(authMiddleware);
 
 /**
- * POST /comments
- * Add a comment to a post (anonymous)
+ * GET /posts/:postId/comments
+ * Get all comments for a post
+ * Query params: limit?, offset?
  */
-router.post('/', authMiddleware, validationMiddleware, async (req, res) => {
-  // TODO: Validate request body (postId, content)
-  // TODO: Call commentsController.createComment
-  res.json({ message: 'Create comment endpoint' });
-});
+router.get('/posts/:postId/comments', commentsController.getComments.bind(commentsController));
+
+/**
+ * POST /posts/:postId/comments
+ * Create a comment on a post
+ * Body: { content }
+ */
+router.post('/posts/:postId/comments', commentsController.createComment.bind(commentsController));
 
 export default router;

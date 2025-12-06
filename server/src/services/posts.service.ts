@@ -1,71 +1,171 @@
-import { PostRepository } from '../repositories/post.repository';
+// Posts Service - Business logic for posts and reactions
+// NO Prisma calls - only repository calls
+
+import { postRepository } from '../repositories/post.repository';
+import { reactionRepository } from '../repositories/reaction.repository';
+import { moderationService } from './moderation.service';
+import { IdeaStatus, ReactionType } from '@prisma/client';
 
 export class PostsService {
-  private postRepository: PostRepository;
-
-  constructor() {
-    this.postRepository = new PostRepository();
-  }
-
   /**
-   * Get all posts (paginated)
-   * TODO: Call repository to fetch posts with pagination
-   * TODO: Return posts without exposing userId (only anonymousId)
+   * Get posts for a school with filters
    */
-  async getPosts(page: number, limit: number): Promise<any> {
+  async getPosts(
+    schoolId: string,
+    filters?: {
+      status?: IdeaStatus;
+      limit?: number;
+      offset?: number;
+    }
+  ): Promise<any[]> {
     try {
-      // TODO: Call this.postRepository.findAll()
-      // TODO: Apply pagination
-      // TODO: Return posts
-      return { message: 'Get posts service' };
+      const posts = await postRepository.findManyBySchool(schoolId, filters);
+
+      // Add reaction counts to each post
+      const postsWithReactions = await Promise.all(
+        posts.map(async (post: any) => {
+          const reactionCounts = await reactionRepository.getReactionCounts(post.id);
+          return {
+            ...post,
+            commentCount: post._count.comments,
+            reactionCounts,
+          };
+        })
+      );
+
+      // Remove _count from response
+      return postsWithReactions.map((post: any) => {
+        const { _count, ...rest } = post;
+        return rest;
+      });
     } catch (error) {
       throw error;
     }
   }
 
   /**
-   * Create a new anonymous post
-   * TODO: Validate content
-   * TODO: Create post linked to anonymousId (not userId)
-   * TODO: Return created post
+   * Get a single post by ID
    */
-  async createPost(anonymousId: string, title: string | null, content: string): Promise<any> {
+  async getPostById(postId: string): Promise<any> {
     try {
-      // TODO: Validate content is not empty
-      // TODO: Call this.postRepository.create()
-      // TODO: Return created post with anonymousId
-      return { message: 'Create post service' };
+      const post = await postRepository.findById(postId);
+
+      if (!post) {
+        throw new Error('POST_NOT_FOUND');
+      }
+
+      const reactionCounts = await reactionRepository.getReactionCounts(postId);
+
+      const { _count, ...postData } = post;
+
+      return {
+        ...postData,
+        commentCount: _count.comments,
+        reactionCounts,
+      };
     } catch (error) {
       throw error;
     }
   }
 
   /**
-   * Add a reaction (emoji) to a post
-   * TODO: Find post, add reaction, save
+   * Create a new post
    */
-  async addReaction(postId: string, anonymousId: string, emoji: string): Promise<any> {
+  async createPost(data: {
+    anonymousId: string;
+    schoolId: string;
+    title?: string;
+    content: string;
+  }): Promise<any> {
     try {
-      // TODO: Call this.postRepository.addReaction()
-      // TODO: Return updated post
-      return { message: 'Add reaction service' };
+      // Check if user is muted or banned
+      await moderationService.checkCanPerformAction(data.anonymousId);
+
+      // Create the post
+      const post = await postRepository.createPost({
+        anonymousId: data.anonymousId,
+        schoolId: data.schoolId,
+        title: data.title,
+        content: data.content,
+      });
+
+      return post;
     } catch (error) {
       throw error;
     }
   }
 
   /**
-   * Report a post for moderation
-   * TODO: Create report record
-   * TODO: Flag post as reported
+   * Update post status (for moderators/student council)
    */
-  async reportPost(postId: string, reason: string): Promise<any> {
+  async updatePostStatus(postId: string, status: IdeaStatus): Promise<any> {
     try {
-      // TODO: Call this.postRepository.createReport()
-      // TODO: Return confirmation
-      return { message: 'Report post service' };
+      // Verify post exists
+      const post = await postRepository.findById(postId);
+
+      if (!post) {
+        throw new Error('POST_NOT_FOUND');
+      }
+
+      // Update status
+      const updatedPost = await postRepository.updateStatus(postId, status);
+
+      return updatedPost;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Toggle reaction on a post
+   */
+  async toggleReaction(data: {
+    postId: string;
+    anonymousId: string;
+    type: ReactionType;
+  }): Promise<any> {
+    try {
+      // Check if user is muted or banned
+      await moderationService.checkCanPerformAction(data.anonymousId);
+
+      // Verify post exists
+      const post = await postRepository.findById(data.postId);
+
+      if (!post) {
+        throw new Error('POST_NOT_FOUND');
+      }
+
+      // Check if reaction already exists
+      const existingReaction = await reactionRepository.findByPostAndUserAndType(
+        data.postId,
+        data.anonymousId,
+        data.type
+      );
+
+      if (existingReaction) {
+        // Remove reaction (toggle off)
+        await reactionRepository.deleteReaction(existingReaction.id);
+      } else {
+        // Add reaction (toggle on)
+        await reactionRepository.createReaction({
+          postId: data.postId,
+          anonymousId: data.anonymousId,
+          type: data.type,
+        });
+      }
+
+      // Return updated reaction counts
+      const reactionCounts = await reactionRepository.getReactionCounts(data.postId);
+
+      return {
+        postId: data.postId,
+        reactionCounts,
+        toggled: !existingReaction, // true if added, false if removed
+      };
     } catch (error) {
       throw error;
     }
   }
 }
+
+export const postsService = new PostsService();

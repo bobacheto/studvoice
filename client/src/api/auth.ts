@@ -1,66 +1,52 @@
-import axios from 'axios';
+import axiosInstance from './axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export interface RegisterData {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  schoolCode: string;
+}
 
-/**
- * Auth API
- * TODO: Implement register and login endpoints
- */
+export interface LoginData {
+  email: string;
+  password: string;
+  schoolCode: string;
+}
+
+export interface AuthResponse {
+  user: {
+    userId: string;
+    anonymousId: string;
+    email: string;
+    role: string;
+    schoolId: string;
+    firstName: string;
+    lastName: string;
+  };
+  accessToken: string;
+  refreshToken: string;
+}
+
 export const authAPI = {
-  /**
-   * Register a new student
-   * TODO: POST /auth/register with email, password, schoolCode
-   */
-  register: async (email: string, password: string, schoolCode: string) => {
-    try {
-      // TODO: const response = axios.post(`${API_URL}/auth/register`, { email, password, schoolCode })
-      // TODO: Handle JWT token storage
-      return { message: 'Register API' };
-    } catch (error) {
-      throw error;
-    }
+  register: async (data: RegisterData): Promise<AuthResponse> => {
+    const response = await axiosInstance.post('/auth/register', data);
+    return response.data;
   },
 
-  /**
-   * Login a student
-   * TODO: POST /auth/login with email, password, schoolCode
-   * TODO: Return JWT token
-   */
-  login: async (email: string, password: string, schoolCode: string) => {
-    try {
-      // TODO: const response = axios.post(`${API_URL}/auth/login`, { email, password, schoolCode })
-      // TODO: Store JWT token in localStorage
-      // TODO: Return user data from response
-      return { message: 'Login API' };
-    } catch (error) {
-      throw error;
-    }
+  login: async (data: LoginData): Promise<AuthResponse> => {
+    const response = await axiosInstance.post('/auth/login', data);
+    return response.data;
   },
 
-  /**
-   * Logout
-   * TODO: Clear JWT token from localStorage
-   */
-  logout: async () => {
-    try {
-      // TODO: Remove JWT from localStorage
-      // TODO: Clear auth state
-      return { message: 'Logout API' };
-    } catch (error) {
-      throw error;
-    }
+  refresh: async (refreshToken: string): Promise<{ accessToken: string }> => {
+    const response = await axiosInstance.post('/auth/refresh', { refreshToken });
+    return response.data;
   },
 
-  /**
-   * Get current user
-   * TODO: GET current user from JWT payload or verify token
-   */
-  getCurrentUser: async () => {
-    try {
-      // TODO: Extract user info from stored JWT token
-      return { message: 'Get current user API' };
-    } catch (error) {
-      throw error;
-    }
+  logout: async (): Promise<void> => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
   },
 };

@@ -1,63 +1,78 @@
-import axios from 'axios';
+import axiosInstance from './axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export interface Post {
+  id: string;
+  title?: string;
+  content: string;
+  status: 'PENDING' | 'UNDER_REVIEW' | 'ACCEPTED' | 'COMPLETED' | 'REJECTED';
+  anonymousId: string;
+  createdAt: string;
+  reactions: {
+    LIKE: number;
+    SUPPORT: number;
+    GREAT: number;
+    THINKING: number;
+  };
+  commentCount: number;
+}
 
-/**
- * Posts API
- * TODO: Implement all posts-related endpoints
- */
+export interface Comment {
+  id: string;
+  postId: string;
+  content: string;
+  anonymousId: string;
+  createdAt: string;
+}
+
+export interface CreatePostData {
+  title?: string;
+  content: string;
+}
+
+export interface CreateCommentData {
+  content: string;
+}
+
 export const postsAPI = {
-  /**
-   * Get all posts (paginated)
-   * TODO: GET /posts with pagination params
-   */
-  getPosts: async (page: number = 1, limit: number = 10) => {
-    try {
-      // TODO: const response = axios.get(`${API_URL}/posts`, { params: { page, limit } })
-      return { message: 'Get posts API' };
-    } catch (error) {
-      throw error;
-    }
+  getPosts: async (params?: { status?: string; limit?: number; offset?: number }): Promise<{ posts: Post[] }> => {
+    const response = await axiosInstance.get('/posts', { params });
+    return response.data;
   },
 
-  /**
-   * Create a new post
-   * TODO: POST /posts with title, content
-   * TODO: Attach JWT token for anonymousId
-   */
-  createPost: async (title: string | null, content: string) => {
-    try {
-      // TODO: Get JWT token from localStorage
-      // TODO: const response = axios.post(`${API_URL}/posts`, { title, content }, { headers: { Authorization: `Bearer ${token}` } })
-      return { message: 'Create post API' };
-    } catch (error) {
-      throw error;
-    }
+  getTrendingPosts: async (): Promise<{ posts: Post[] }> => {
+    const response = await axiosInstance.get('/posts', {
+      params: { limit: 10 }
+    });
+    return response.data;
   },
 
-  /**
-   * Add reaction to a post
-   * TODO: POST /posts/:id/react with emoji
-   */
-  addReaction: async (postId: string, emoji: string) => {
-    try {
-      // TODO: const response = axios.post(`${API_URL}/posts/${postId}/react`, { emoji })
-      return { message: 'Add reaction API' };
-    } catch (error) {
-      throw error;
-    }
+  getPostById: async (id: string): Promise<{ post: Post }> => {
+    const response = await axiosInstance.get(`/posts/${id}`);
+    return response.data;
   },
 
-  /**
-   * Report a post
-   * TODO: POST /posts/:id/report with reason
-   */
-  reportPost: async (postId: string, reason: string) => {
-    try {
-      // TODO: const response = axios.post(`${API_URL}/posts/${postId}/report`, { reason })
-      return { message: 'Report post API' };
-    } catch (error) {
-      throw error;
-    }
+  createPost: async (data: CreatePostData): Promise<{ post: Post }> => {
+    const response = await axiosInstance.post('/posts', data);
+    return response.data;
+  },
+
+  reactToPost: async (postId: string, type: 'LIKE' | 'SUPPORT' | 'GREAT' | 'THINKING'): Promise<any> => {
+    const response = await axiosInstance.post(`/posts/${postId}/reactions`, { type });
+    return response.data;
+  },
+
+  getComments: async (postId: string): Promise<{ comments: Comment[] }> => {
+    const response = await axiosInstance.get(`/posts/${postId}/comments`);
+    return response.data;
+  },
+
+  addComment: async (postId: string, data: CreateCommentData): Promise<{ comment: Comment }> => {
+    const response = await axiosInstance.post(`/posts/${postId}/comments`, data);
+    return response.data;
+  },
+
+  updatePostStatus: async (postId: string, status: string): Promise<{ post: Post }> => {
+    const response = await axiosInstance.patch(`/posts/${postId}/status`, { status });
+    return response.data;
   },
 };
