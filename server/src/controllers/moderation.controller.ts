@@ -33,10 +33,7 @@ export class ModerationController {
         reason,
       });
 
-      res.status(201).json({
-        status: 'success',
-        data: { report },
-      });
+      res.status(201).json({ report });
     } catch (error: any) {
       res.status(500).json({
         status: 'error',
@@ -55,10 +52,7 @@ export class ModerationController {
 
       const reports = await moderationService.getReports(schoolId, status);
 
-      res.status(200).json({
-        status: 'success',
-        data: { reports },
-      });
+      res.status(200).json({ reports });
     } catch (error: any) {
       res.status(500).json({
         status: 'error',
@@ -89,10 +83,7 @@ export class ModerationController {
 
       const updatedReport = await moderationService.updateReportStatus(id, status as ReportStatus);
 
-      res.status(200).json({
-        status: 'success',
-        data: { report: updatedReport },
-      });
+      res.status(200).json({ report: updatedReport });
     } catch (error: any) {
       res.status(500).json({
         status: 'error',
@@ -126,10 +117,7 @@ export class ModerationController {
         reason,
       });
 
-      res.status(201).json({
-        status: 'success',
-        data: { strike },
-      });
+      res.status(201).json({ strike });
     } catch (error: any) {
       res.status(400).json({
         status: 'error',
@@ -147,10 +135,7 @@ export class ModerationController {
 
       const strikes = await moderationService.getStrikeHistory(anonymousId);
 
-      res.status(200).json({
-        status: 'success',
-        data: { strikes },
-      });
+      res.status(200).json({ strikes });
     } catch (error: any) {
       res.status(500).json({
         status: 'error',

@@ -60,6 +60,25 @@ export class PollsController {
   }
 
   /**
+   * DELETE /polls/:id - Delete a poll
+   */
+  async deletePoll(req: Request, res: Response) {
+    try {
+      const { id: pollId } = req.params;
+
+      await pollsService.deletePoll(pollId);
+
+      res.status(200).json({ success: true, message: 'Poll deleted successfully' });
+    } catch (error: unknown) {
+      if (error instanceof AppError) {
+        res.status(error.statusCode).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+  }
+
+  /**
    * POST /polls/:id/vote - Vote on a poll
    */
   async vote(req: Request, res: Response) {

@@ -1,5 +1,3 @@
-import { axiosInstance } from "./axios"
-
 export type ReactionType = "LIKE" | "SUPPORT" | "GREAT" | "THINKING"
 
 export interface Post {
@@ -20,12 +18,18 @@ export interface CreatePostData {
 
 export const postsAPI = {
   async getTrendingPosts(): Promise<Post[]> {
-    const { data } = await axiosInstance.get("/posts", { params: { limit: 10 } })
+    const response = await fetch("/api/posts?limit=10")
+    const data = await response.json()
     return data.posts as Post[]
   },
 
   async createPost(payload: CreatePostData): Promise<Post> {
-    const { data } = await axiosInstance.post("/posts", payload)
+    const response = await fetch("/api/posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+    const data = await response.json()
     return data.post as Post
   },
 }

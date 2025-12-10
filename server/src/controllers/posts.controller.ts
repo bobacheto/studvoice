@@ -19,10 +19,7 @@ export class PostsController {
 
       const posts = await postsService.getPosts(schoolId, { status, limit, offset });
 
-      res.status(200).json({
-        status: 'success',
-        data: { posts },
-      });
+      res.status(200).json({ posts });
     } catch (error: any) {
       res.status(500).json({
         status: 'error',
@@ -40,10 +37,7 @@ export class PostsController {
 
       const post = await postsService.getPostById(id);
 
-      res.status(200).json({
-        status: 'success',
-        data: { post },
-      });
+      res.status(200).json({ post });
     } catch (error: any) {
       if (error.message === 'POST_NOT_FOUND') {
         res.status(404).json({
@@ -87,10 +81,7 @@ export class PostsController {
         content,
       });
 
-      res.status(201).json({
-        status: 'success',
-        data: { post },
-      });
+      res.status(201).json({ post });
     } catch (error: any) {
       if (error.message === 'USER_BANNED') {
         res.status(403).json({
@@ -137,10 +128,7 @@ export class PostsController {
 
       const updatedPost = await postsService.updatePostStatus(id, status as IdeaStatus);
 
-      res.status(200).json({
-        status: 'success',
-        data: { post: updatedPost },
-      });
+      res.status(200).json({ post: updatedPost });
     } catch (error: any) {
       if (error.message === 'POST_NOT_FOUND') {
         res.status(404).json({
@@ -153,6 +141,32 @@ export class PostsController {
       res.status(500).json({
         status: 'error',
         message: error.message || 'Failed to update post status',
+      });
+    }
+  }
+
+  /**
+   * DELETE /posts/:id - Delete a post
+   */
+  async deletePost(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+
+      await postsService.deletePost(id);
+
+      res.status(200).json({ success: true, message: 'Post deleted successfully' });
+    } catch (error: any) {
+      if (error.message === 'POST_NOT_FOUND') {
+        res.status(404).json({
+          status: 'error',
+          message: 'Post not found',
+        });
+        return;
+      }
+
+      res.status(500).json({
+        status: 'error',
+        message: error.message || 'Failed to delete post',
       });
     }
   }
@@ -184,10 +198,7 @@ export class PostsController {
         type: type as any,
       });
 
-      res.status(200).json({
-        status: 'success',
-        data: result,
-      });
+      res.status(200).json(result);
     } catch (error: any) {
       if (error.message === 'POST_NOT_FOUND') {
         res.status(404).json({

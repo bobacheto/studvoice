@@ -30,10 +30,7 @@ export class AuthController {
       const result = await this.authService.register(validationResult.data);
 
       // 3. Return success response
-      res.status(201).json({
-        status: 'success',
-        data: result,
-      });
+      res.status(201).json(result);
     } catch (error) {
       // 4. Handle errors
       if (error instanceof AppError) {
@@ -70,10 +67,7 @@ export class AuthController {
       const result = await this.authService.login(validationResult.data);
 
       // 3. Return success response
-      res.status(200).json({
-        status: 'success',
-        data: result,
-      });
+      res.status(200).json(result);
     } catch (error) {
       // 4. Handle errors
       if (error instanceof AppError) {

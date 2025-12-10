@@ -117,6 +117,25 @@ export class PostsService {
   }
 
   /**
+   * Delete a post
+   */
+  async deletePost(postId: string): Promise<void> {
+    try {
+      // Verify post exists
+      const post = await postRepository.findById(postId);
+
+      if (!post) {
+        throw new Error('POST_NOT_FOUND');
+      }
+
+      // Delete the post
+      await postRepository.deletePost(postId);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
    * Toggle reaction on a post
    */
   async toggleReaction(data: {

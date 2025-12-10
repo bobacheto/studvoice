@@ -74,7 +74,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       user: {
-        id: user.id,
+        userId: user.id,
         email: user.email,
         anonymousId: user.anonymousId,
         role: user.role,
@@ -136,7 +136,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       user: {
-        id: user.id,
+        userId: user.id,
         email: user.email,
         anonymousId: user.anonymousId,
         role: user.role,

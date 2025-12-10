@@ -5,9 +5,11 @@ interface PollCardProps {
   poll: Poll;
   onVote: (pollId: string, optionId: string) => Promise<void> | void;
   isVoting?: boolean;
+  onDelete?: () => void;
+  isDeleting?: boolean;
 }
 
-export default function PollCard({ poll, onVote, isVoting }: PollCardProps) {
+export default function PollCard({ poll, onVote, isVoting, onDelete, isDeleting }: PollCardProps) {
   const [localVotedOptionId, setLocalVotedOptionId] = useState<string | null>(
     poll.votedOptionId || null,
   );
@@ -39,11 +41,22 @@ export default function PollCard({ poll, onVote, isVoting }: PollCardProps) {
             <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{poll.description}</p>
           )}
         </div>
-        {poll.expiresAt && (
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            Expires {new Date(poll.expiresAt).toLocaleDateString()}
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {poll.expiresAt && (
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              Expires {new Date(poll.expiresAt).toLocaleDateString()}
+            </span>
+          )}
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              disabled={isDeleting}
+              className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50 border border-red-200 dark:border-red-700 rounded px-2 py-1"
+            >
+              {isDeleting ? 'Deleting...' : '🗑️ Delete'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2">

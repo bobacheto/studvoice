@@ -24,6 +24,13 @@ router.post(
   (req, res) => pollsController.createPoll(req, res)
 );
 
+// DELETE /polls/:id - Delete a poll
+router.delete(
+  '/:id',
+  authMiddleware,
+  (req, res) => pollsController.deletePoll(req, res)
+);
+
 // POST /polls/:id/vote - Vote on a poll (all authenticated users)
 router.post(
   '/:id/vote',

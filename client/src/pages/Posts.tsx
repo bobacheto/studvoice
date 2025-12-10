@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { postsAPI, Post, CreateCommentData, Comment } from '../api/posts';
 import { useAuth } from '../hooks/useAuth';
 import PostCard from '../components/PostCard';
+import { CreateFloatingButton } from '../components/create-floating-button';
 
 export default function Posts() {
   const { user } = useAuth();
@@ -12,10 +13,17 @@ export default function Posts() {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Fetch posts
-  const { data: postsData, isLoading } = useQuery<{ posts: Post[]}>({
+  const { data: postsData, isLoading } = useQuery<{
+    posts: Array<
+      Post & {
+        reactionCounts?: Record<string, number>;
+        commentCount?: number;
+        createdAt?: string;
+      }
+    >;
+  }>({
     queryKey: ['posts', statusFilter],
-    queryFn: () =>
-      postsAPI.getPosts(statusFilter === 'ALL' ? {} : { status: statusFilter }),
+    queryFn: () => postsAPI.getPosts(statusFilter === 'ALL' ? {} : { status: statusFilter }),
   });
 
   // React to post
@@ -36,12 +44,36 @@ export default function Posts() {
 
   const canCreatePost = user?.role !== 'STUDENT' && user?.role !== 'STUDENT_COUNCIL';
 
+  const deleteMutation = useMutation({
+    mutationFn: (postId: string) => postsAPI.deletePost(postId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['trending-posts'] });
+    },
+  });
+  
+  const normalizedPosts = (postsData?.posts || []).map((post) => {
+    const reactions = (post as any).reactions || (post as any).reactionCounts || {
+      LIKE: 0,
+      SUPPORT: 0,
+      GREAT: 0,
+      THINKING: 0,
+    };
+    
+    return {
+      ...post,
+      reactions,
+      commentCount: post.commentCount ?? 0,
+      createdAt: post.createdAt || new Date().toISOString(),
+    } as Post;
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">📝 Posts</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">📝 Публикации</h1>
           <div className="flex items-center gap-4">
             {/* Status Filter */}
             <select
@@ -49,12 +81,12 @@ export default function Posts() {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="ALL">All Statuses</option>
-              <option value="PENDING">Pending</option>
-              <option value="UNDER_REVIEW">Under Review</option>
-              <option value="ACCEPTED">Accepted</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="REJECTED">Rejected</option>
+              <option value="ALL">Всички статуси</option>
+              <option value="PENDING">В очакване</option>
+              <option value="UNDER_REVIEW">Под преглед</option>
+              <option value="ACCEPTED">Приемана</option>
+              <option value="COMPLETED">Завършена</option>
+              <option value="REJECTED">Отхвърлена</option>
             </select>
 
             {/* Create Post Button (for privileged roles) */}
@@ -63,7 +95,7 @@ export default function Posts() {
                 onClick={() => setShowCreateModal(true)}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
               >
-                + Create Post
+                + Нова публикация
               </button>
             )}
           </div>
@@ -80,24 +112,31 @@ export default function Posts() {
               </div>
             ))}
           </div>
-        ) : postsData && postsData.posts.length > 0 ? (
+        ) : normalizedPosts.length > 0 ? (
           <div className="space-y-4">
-            {postsData.posts.map((post) => (
+            {normalizedPosts.map((post) => (
               <PostCard
                 key={post.id}
                 post={post}
                 onReact={handleReact}
                 onViewComments={() => setSelectedPost(post)}
+                onDelete={() => deleteMutation.mutate(post.id)}
+                isDeleting={deleteMutation.isPending}
               />
             ))}
           </div>
         ) : (
           <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow">
-            <p className="text-gray-500 dark:text-gray-400">No posts found</p>
+            <p className="text-gray-500 dark:text-gray-400">Няма публикации</p>
           </div>
         )}
 
         {/* Create Post Modal */}
+        <CreateFloatingButton
+          onClick={() => setShowCreateModal(true)}
+          label="Нова публикация"
+        />
+
         {showCreateModal && (
           <CreatePostModal
             onClose={() => setShowCreateModal(false)}
@@ -128,14 +167,14 @@ function CreatePostModal({ onClose, onSuccess }: { onClose: () => void; onSucces
       onSuccess();
     },
     onError: (err: any) => {
-      setError(err.response?.data?.error || 'Failed to create post');
+      setError(err.response?.data?.error || 'Неуспешно създаване на публикация');
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.content.trim()) {
-      setError('Content is required');
+      setError('Съдържанието е задължително');
       return;
     }
     createMutation.mutate();
@@ -145,7 +184,7 @@ function CreatePostModal({ onClose, onSuccess }: { onClose: () => void; onSucces
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Create Post</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Създай публикация</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -163,27 +202,27 @@ function CreatePostModal({ onClose, onSuccess }: { onClose: () => void; onSucces
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Title (optional)
+              Заглавие (опционално)
             </label>
             <input
               type="text"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter title..."
+              placeholder="Въведи заглавие..."
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Content *
+              Съдържание *
             </label>
             <textarea
               value={formData.content}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               rows={5}
               className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Share your thoughts..."
+              placeholder="Спдели своята мисъл..."
               required
             />
           </div>
@@ -194,14 +233,14 @@ function CreatePostModal({ onClose, onSuccess }: { onClose: () => void; onSucces
               onClick={onClose}
               className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
-              Cancel
+              Отмяна
             </button>
             <button
               type="submit"
               disabled={createMutation.isPending}
               className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
             >
-              {createMutation.isPending ? 'Creating...' : 'Create Post'}
+              {createMutation.isPending ? 'Създаване...' : 'Създай публикация'}
             </button>
           </div>
         </form>
@@ -286,7 +325,7 @@ function CommentsModal({ post, onClose }: { post: Post; onClose: () => void }) {
               type="text"
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Add a comment..."
+              placeholder="Добави коментар..."
               className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <button

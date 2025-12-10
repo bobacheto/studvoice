@@ -9,7 +9,6 @@ import Dashboard from './pages/Dashboard';
 import Posts from './pages/Posts';
 import Polls from './pages/Polls';
 import AMA from './pages/AMA';
-import Challenges from './pages/Challenges';
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -69,16 +68,6 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <AMA />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/challenges"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Challenges />
                   </Layout>
                 </ProtectedRoute>
               }

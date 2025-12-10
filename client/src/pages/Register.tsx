@@ -23,13 +23,13 @@ export default function Register() {
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError('Паролите не съвпадат');
       return;
     }
 
     // Validate password length
     if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError('Паролата трябва да е минимум 8 символа');
       return;
     }
 
@@ -45,7 +45,7 @@ export default function Register() {
       );
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Registration failed. Please try again.');
+      setError(err.response?.data?.error || 'Регистрацията е неуспешна. Моля, опитайте отново.');
     } finally {
       setIsLoading(false);
     }
@@ -66,13 +66,13 @@ export default function Register() {
             StudVoice
           </h1>
           <p className="text-gray-600 dark:text-gray-300">
-            Join your school community
+            Присъедини се към комунитета си
           </p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Create Account
+            Създай акаунт
           </h2>
 
           {error && (
@@ -147,13 +147,13 @@ export default function Register() {
                 placeholder="SCHOOL123"
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Get this code from your school administrator
+                Получи този код от администратора на твоето училище
               </p>
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Password
+                Парола
               </label>
               <input
                 type="password"
@@ -169,7 +169,7 @@ export default function Register() {
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Confirm Password
+                Потвърди паролата
               </label>
               <input
                 type="password"
@@ -188,15 +188,15 @@ export default function Register() {
               disabled={isLoading}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2.5 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 mt-6"
             >
-              {isLoading ? 'Creating account...' : 'Create Account'}
+              {isLoading ? 'Създаване на акаунт...' : 'Създай акаунт'}
             </button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Already have an account?{' '}
+              Вече имаш акаунт?{' '}
               <Link to="/login" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium">
-                Login here
+                Влез тук
               </Link>
             </p>
           </div>

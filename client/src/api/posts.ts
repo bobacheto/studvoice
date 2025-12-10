@@ -61,6 +61,10 @@ export const postsAPI = {
     return response.data;
   },
 
+  deletePost: async (postId: string): Promise<void> => {
+    await axiosInstance.delete(`/posts/${postId}`);
+  },
+
   getComments: async (postId: string): Promise<{ comments: Comment[] }> => {
     const response = await axiosInstance.get(`/posts/${postId}/comments`);
     return response.data;

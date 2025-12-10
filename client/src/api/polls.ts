@@ -49,4 +49,8 @@ export const pollsAPI = {
     const { data } = await axiosInstance.post(`/polls/${pollId}/vote`, { optionId });
     return data;
   },
+
+  async deletePoll(pollId: string): Promise<void> {
+    await axiosInstance.delete(`/polls/${pollId}`);
+  },
 };

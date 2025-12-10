@@ -21,8 +21,6 @@ export interface AuthResponse {
     email: string;
     role: string;
     schoolId: string;
-    firstName: string;
-    lastName: string;
   };
   accessToken: string;
   refreshToken: string;

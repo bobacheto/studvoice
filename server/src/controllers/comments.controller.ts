@@ -18,10 +18,7 @@ export class CommentsController {
 
       const comments = await commentsService.getCommentsByPostId(postId, schoolId, limit, offset);
 
-      res.status(200).json({
-        status: 'success',
-        data: { comments },
-      });
+      res.status(200).json({ comments });
     } catch (error: any) {
       if (error.message === 'POST_NOT_FOUND') {
         res.status(404).json({
@@ -75,10 +72,7 @@ export class CommentsController {
         content,
       });
 
-      res.status(201).json({
-        status: 'success',
-        data: { comment },
-      });
+      res.status(201).json({ comment });
     } catch (error: any) {
       if (error.message === 'POST_NOT_FOUND') {
         res.status(404).json({

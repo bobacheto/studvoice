@@ -7,6 +7,7 @@ import {
 } from '../api/ama';
 import { useAuth } from '../context/AuthContext';
 import AMAQuestion from '../components/AMAQuestion';
+import { CreateFloatingButton } from '../components/create-floating-button';
 
 const CREATOR_ROLES = ['TEACHER', 'STUDENT_COUNCIL', 'DIRECTOR', 'MODERATOR'];
 
@@ -79,7 +80,7 @@ export default function AMA() {
               onClick={() => setShowCreateModal(true)}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
             >
-              + Create AMA
+              + Ново AMA
             </button>
           )}
         </div>
@@ -115,22 +116,27 @@ export default function AMA() {
           </div>
         ) : (
           <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow">
-            <p className="text-gray-500 dark:text-gray-400">No AMA sessions available</p>
+            <p className="text-gray-500 dark:text-gray-400">Няма достъпни AMA сесии</p>
           </div>
         )}
+
+        <CreateFloatingButton
+          onClick={() => setShowCreateModal(true)}
+          label="Ново AMA"
+        />
 
         {selectedSessionId && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Questions</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Въпроси</h2>
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                {questions?.length || 0} questions
+                {questions?.length || 0} въпроса
               </span>
             </div>
 
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Ask a question
+                Задай въпрос
               </label>
               <div className="flex items-start gap-3">
                 <textarea
@@ -138,14 +144,14 @@ export default function AMA() {
                   onChange={(e) => setQuestionText(e.target.value)}
                   rows={2}
                   className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Type your question (anonymous)"
+                  placeholder="Напиши своя въпрос (анонимно)"
                 />
                 <button
                   onClick={() => askMutation.mutate(questionText)}
                   disabled={!questionText.trim() || askMutation.isPending}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
                 >
-                  {askMutation.isPending ? 'Sending...' : 'Ask'}
+                  {askMutation.isPending ? 'Изпращане...' : 'Задай'}
                 </button>
               </div>
             </div>
@@ -165,7 +171,7 @@ export default function AMA() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 dark:text-gray-400 text-sm">No questions yet</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">Все още няма въпроси</p>
             )}
           </div>
         )}
@@ -227,7 +233,7 @@ function CreateAMAModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      setFormError('Title is required');
+      setFormError('Заглавието е задължително');
       return;
     }
     setFormError('');
@@ -238,7 +244,7 @@ function CreateAMAModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Create AMA</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Създай AMA</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -255,28 +261,28 @@ function CreateAMAModal({
 
         {error && (
           <div className="mb-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 px-4 py-2 rounded-lg text-sm">
-            {(error as any)?.response?.data?.error || 'Failed to create AMA'}
+            {(error as any)?.response?.data?.error || 'Неуспешно създаване на AMA'}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Title
+              Заглавие
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Ask Me Anything with..."
+              placeholder="Попитай ме всичко с..."
               required
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Description (optional)
+              Описание (опционално)
             </label>
             <textarea
               value={description}
@@ -292,14 +298,14 @@ function CreateAMAModal({
               onClick={onClose}
               className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
             >
-              Cancel
+              Отмяна
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
               className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
             >
-              {isSubmitting ? 'Creating...' : 'Create AMA'}
+              {isSubmitting ? 'Създаване...' : 'Създай AMA'}
             </button>
           </div>
         </form>

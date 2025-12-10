@@ -42,6 +42,12 @@ router.patch(
 );
 
 /**
+ * DELETE /posts/:id
+ * Delete a post
+ */
+router.delete('/:id', postsController.deletePost.bind(postsController));
+
+/**
  * POST /posts/:id/reactions
  * Toggle reaction on a post
  * Body: { type: ReactionType }

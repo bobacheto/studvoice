@@ -7,8 +7,6 @@ interface User {
   email: string;
   role: string;
   schoolId: string;
-  firstName: string;
-  lastName: string;
 }
 
 interface AuthContextType {
@@ -50,7 +48,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password: string, schoolCode: string) => {
     try {
+      console.log('Attempting login with:', { email, schoolCode });
       const response: AuthResponse = await authAPI.login({ email, password, schoolCode });
+      console.log('Login response received:', response);
       
       // Save to state
       setUser(response.user);
@@ -61,6 +61,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       localStorage.setItem('user', JSON.stringify(response.user));
       localStorage.setItem('accessToken', response.accessToken);
       localStorage.setItem('refreshToken', response.refreshToken);
+      
+      console.log('Login successful, user saved to state and localStorage');
     } catch (error) {
       console.error('Login failed:', error);
       throw error;

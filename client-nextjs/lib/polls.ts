@@ -1,5 +1,3 @@
-import { axiosInstance } from "./axios"
-
 export interface PollOption {
   id: string
   text: string
@@ -26,12 +24,18 @@ export interface CreatePollPayload {
 
 export const pollsAPI = {
   async getPolls(): Promise<Poll[]> {
-    const { data } = await axiosInstance.get("/polls")
+    const response = await fetch("/api/polls")
+    const data = await response.json()
     return data.polls as Poll[]
   },
 
   async createPoll(payload: CreatePollPayload): Promise<Poll> {
-    const { data } = await axiosInstance.post("/polls", payload)
+    const response = await fetch("/api/polls", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+    const data = await response.json()
     return data.poll as Poll
   },
 }

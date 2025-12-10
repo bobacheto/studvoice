@@ -1,6 +1,15 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Auto-detect API URL based on current hostname
+const getAPIURL = () => {
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  if (hostname === '192.168.0.102' || hostname === '172.25.240.1') {
+    return `http://${hostname}:5000/api`;
+  }
+  return import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+};
+
+const API_URL = getAPIURL();
 
 // Create axios instance
 const axiosInstance = axios.create({

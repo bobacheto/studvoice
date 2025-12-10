@@ -1,5 +1,3 @@
-import { axiosInstance } from "./axios"
-
 export type AMAStatus = "PENDING" | "ANSWERED" | "REJECTED"
 
 export interface AMASession {
@@ -22,7 +20,8 @@ export interface AMASession {
 
 export const amaAPI = {
   async getActiveAMA(): Promise<AMASession[]> {
-    const { data } = await axiosInstance.get("/ama")
+    const response = await fetch("/api/ama")
+    const data = await response.json()
     return data.sessions as AMASession[]
   },
 }

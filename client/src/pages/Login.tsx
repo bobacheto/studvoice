@@ -20,10 +20,14 @@ export default function Login() {
     setIsLoading(true);
 
     try {
+      console.log('Login form submitted');
       await login(formData.email, formData.password, formData.schoolCode);
+      console.log('Login successful, navigating to dashboard');
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+      console.error('Login error:', err);
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || 'Login failed. Please check your credentials.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -44,13 +48,13 @@ export default function Login() {
             StudVoice
           </h1>
           <p className="text-gray-600 dark:text-gray-300">
-            Your voice matters. Login to share.
+            Твоят глас има значение. Влез и сподели.
           </p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Welcome Back
+            Добре дошъл обратно
           </h2>
 
           {error && (
@@ -62,7 +66,7 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Email Address
+                Имейл адрес
               </label>
               <input
                 type="email"
@@ -78,7 +82,7 @@ export default function Login() {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Password
+                Парола
               </label>
               <input
                 type="password"
@@ -94,7 +98,7 @@ export default function Login() {
 
             <div>
               <label htmlFor="schoolCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                School Code
+                Код на училище
               </label>
               <input
                 type="text"
@@ -113,15 +117,15 @@ export default function Login() {
               disabled={isLoading}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2.5 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              {isLoading ? 'Logging in...' : 'Login'}
+              {isLoading ? 'Вход...' : 'Вход'}
             </button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Don't have an account?{' '}
+              Нямаш акаунт?{' '}
               <Link to="/register" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium">
-                Register here
+                Регистрирай се тук
               </Link>
             </p>
           </div>

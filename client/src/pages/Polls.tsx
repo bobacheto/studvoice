@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import PollCard from '../components/PollCard';
 import { pollsAPI, Poll } from '../api/polls';
 import { useAuth } from '../context/AuthContext';
+import { CreateFloatingButton } from '../components/create-floating-button';
 
 const CREATOR_ROLES = ['STUDENT_COUNCIL', 'MODERATOR', 'TEACHER', 'DIRECTOR'];
 
@@ -12,9 +13,9 @@ export default function Polls() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [votedMap, setVotedMap] = useState<Record<string, string>>({});
 
-  const { data: polls, isLoading } = useQuery<Poll[]>({
+  const { data: pollsResponse, isLoading } = useQuery<{ polls: Poll[] }>({
     queryKey: ['polls'],
-    queryFn: () => pollsAPI.getPolls(),
+    queryFn: () => pollsAPI.getPolls().then(polls => ({ polls })),
   });
 
   const voteMutation = useMutation({
@@ -34,6 +35,13 @@ export default function Polls() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (pollId: string) => pollsAPI.deletePoll(pollId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['polls'] });
+    },
+  });
+
   const handleVote = async (pollId: string, optionId: string) => {
     await voteMutation.mutateAsync({ pollId, optionId });
   };
@@ -44,13 +52,13 @@ export default function Polls() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">📊 Polls</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">📊 Анкети</h1>
           {canCreatePoll && (
             <button
               onClick={() => setShowCreateModal(true)}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
             >
-              + Create Poll
+              + Нова анкета
             </button>
           )}
         </div>
@@ -67,22 +75,29 @@ export default function Polls() {
               </div>
             ))}
           </div>
-        ) : polls && polls.length > 0 ? (
+        ) : pollsResponse && pollsResponse.polls && pollsResponse.polls.length > 0 ? (
           <div className="space-y-4">
-            {polls.map((poll) => (
+            {pollsResponse.polls.map((poll) => (
               <PollCard
                 key={poll.id}
                 poll={{ ...poll, votedOptionId: votedMap[poll.id] }}
                 onVote={handleVote}
                 isVoting={voteMutation.isPending}
+                onDelete={() => deleteMutation.mutate(poll.id)}
+                isDeleting={deleteMutation.isPending}
               />
             ))}
           </div>
         ) : (
           <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow">
-            <p className="text-gray-500 dark:text-gray-400">No active polls</p>
+            <p className="text-gray-500 dark:text-gray-400">Няма анкети</p>
           </div>
         )}
+
+        <CreateFloatingButton
+          onClick={() => setShowCreateModal(true)}
+          label="Нова анкета"
+        />
 
         {showCreateModal && (
           <CreatePollModal
@@ -163,7 +178,7 @@ function CreatePollModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-xl w-full p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Create Poll</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Създай анкета</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -180,28 +195,28 @@ function CreatePollModal({
 
         {error && (
           <div className="mb-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 px-4 py-2 rounded-lg text-sm">
-            {(error as any)?.response?.data?.error || 'Failed to create poll'}
+            {(error as any)?.response?.data?.error || 'Неуспешно създаване на анкета'}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Question
+              Въпрос
             </label>
             <input
               type="text"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="What's your question?"
+              placeholder="Какъв е твоят въпрос?"
               required
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Description (optional)
+              Описание (опционално)
             </label>
             <textarea
               value={form.description}
@@ -213,13 +228,13 @@ function CreatePollModal({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Options</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Варианти</label>
               <button
                 type="button"
                 onClick={addOption}
                 className="text-sm text-blue-600 hover:text-blue-700"
               >
-                + Add option
+                + Добави вариант
               </button>
             </div>
             {form.options.map((opt, idx) => (
@@ -229,7 +244,7 @@ function CreatePollModal({
                   value={opt}
                   onChange={(e) => handleOptionChange(idx, e.target.value)}
                   className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder={`Option ${idx + 1}`}
+                  placeholder={`Вариант ${idx + 1}`}
                   required
                 />
                 {form.options.length > 2 && (
@@ -247,7 +262,7 @@ function CreatePollModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Expires At (optional)
+              Изтича в (опционално)
             </label>
             <input
               type="datetime-local"
@@ -261,16 +276,16 @@ function CreatePollModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
-              Cancel
+              Отмяна
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
               className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
             >
-              {isSubmitting ? 'Creating...' : 'Create Poll'}
+              {isSubmitting ? 'Създаване...' : 'Създай анкета'}
             </button>
           </div>
         </form>

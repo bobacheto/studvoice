@@ -137,6 +137,19 @@ export class PostRepository {
   }
 
   /**
+   * Delete a post
+   */
+  async deletePost(postId: string): Promise<void> {
+    try {
+      await prisma.post.delete({
+        where: { id: postId },
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
    * Create a report for a post (moved to report.repository.ts)
    */
 }

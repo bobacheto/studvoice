@@ -138,4 +138,13 @@ export class PollRepository {
 
     return !!option;
   }
+
+  /**
+   * Delete a poll
+   */
+  async deletePoll(pollId: string): Promise<void> {
+    await prisma.poll.delete({
+      where: { id: pollId }
+    });
+  }
 }

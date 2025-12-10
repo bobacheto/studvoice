@@ -5,9 +5,11 @@ interface PostCardProps {
   post: Post;
   onReact: (postId: string, type: 'LIKE' | 'SUPPORT' | 'GREAT' | 'THINKING') => void;
   onViewComments: (post: Post) => void;
+  onDelete?: () => void;
+  isDeleting?: boolean;
 }
 
-export default function PostCard({ post, onReact, onViewComments }: PostCardProps) {
+export default function PostCard({ post, onReact, onViewComments, onDelete, isDeleting }: PostCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'ACCEPTED':
@@ -40,13 +42,24 @@ export default function PostCard({ post, onReact, onViewComments }: PostCardProp
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 hover:shadow-lg transition-shadow">
       {/* Status Badge */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 gap-3">
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(post.status)}`}>
           {post.status.replace('_', ' ')}
         </span>
-        <span className="text-xs text-gray-500 dark:text-gray-400">
-          {formatRelativeTime(post.createdAt)}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            {formatRelativeTime(post.createdAt)}
+          </span>
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              disabled={isDeleting}
+              className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50 border border-red-200 dark:border-red-700 rounded px-2 py-1"
+            >
+              {isDeleting ? 'Deleting...' : '🗑️ Delete'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Title & Content */}

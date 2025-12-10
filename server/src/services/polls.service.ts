@@ -98,6 +98,18 @@ export class PollsService {
   }
 
   /**
+   * Delete a poll
+   */
+  async deletePoll(pollId: string) {
+    const poll = await pollRepository.findById(pollId);
+    if (!poll) {
+      throw new AppError(404, 'Poll not found');
+    }
+
+    await pollRepository.deletePoll(pollId);
+  }
+
+  /**
    * Vote on a poll
    */
   async vote(data: {
